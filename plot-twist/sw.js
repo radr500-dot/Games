@@ -1,5 +1,5 @@
 // Offline support: keep a copy of the app so it opens with no signal.
-const CACHE = 'plot-twist-v1';
+const CACHE = 'plot-twist-v2';
 const FILES = [
   './', './index.html', './style.css', './app.js', './generator.js', './worker.js',
   './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'

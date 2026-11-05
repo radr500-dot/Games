@@ -12,13 +12,32 @@
   const DAILY_SIZE = 8;
   const EMPTY = 0, PEBBLE = 1, BLOOM = 2;
 
-  const BLOOM_SVG = (() => {
+  // Visual themes. Each has its own piece; the rules never change.
+  const svg = (inner) => `<svg class="piece" viewBox="-50 -50 100 100" aria-hidden="true">${inner}</svg>`;
+  const flower = (() => {
     let petals = '';
-    for (let i = 0; i < 5; i++) {
-      petals += `<ellipse class="petal" rx="17" ry="26" transform="rotate(${i * 72}) translate(0 -22)"/>`;
-    }
-    return `<svg class="bloom" viewBox="-50 -50 100 100" aria-hidden="true">${petals}<circle class="heart" r="15"/></svg>`;
+    for (let i = 0; i < 5; i++) petals += `<ellipse class="pa" rx="17" ry="26" transform="rotate(${i * 72}) translate(0 -22)"/>`;
+    return svg(`${petals}<circle class="pb" r="15"/>`);
   })();
+  const starPath = (() => {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 19 : 44, a = (Math.PI / 5) * i - Math.PI / 2;
+      pts.push(`${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a) + 3).toFixed(1)}`);
+    }
+    return pts.join(' ');
+  })();
+  const THEMES = {
+    garden: { name: 'Garden', piece: 'bloom', pieces: 'blooms', svg: flower, color: ['#f5efe3', '#1d231b'], sw: ['#a9c98a', '#f0a07c', '#bba6e6', '#f5d565'] },
+    night: { name: 'Night Sky', piece: 'star', pieces: 'stars', color: ['#0f1526', '#0f1526'],
+      svg: svg(`<polygon class="pa" points="${starPath}"/>`), sw: ['#2f4f8f', '#6a3d8f', '#1f6f78', '#ffd34d'] },
+    bold: { name: 'Bold', piece: 'token', pieces: 'tokens', color: ['#ffffff', '#ffffff'],
+      svg: svg('<circle class="pa" r="38"/><circle class="pb nostroke" r="14"/>'), sw: ['#ff8a80', '#ffd54f', '#81d4fa', '#111111'] },
+    ink: { name: 'Paper & Ink', piece: 'gem', pieces: 'gems', color: ['#faf8f4', '#faf8f4'],
+      svg: svg('<polygon class="pa" points="0,-42 34,0 0,42 -34,0"/><polygon class="pb nostroke" points="0,-22 12,0 0,22 -12,0" opacity=".9"/>'), sw: ['#f6f1e6', '#e3ecf4', '#f4e6e6', '#1c1c1c'] },
+  };
+  const theme = () => THEMES[settings.theme] || THEMES.garden;
+  const tapHint = () => `Tap once for an ✕, twice for a ${theme().piece}.`;
 
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -30,7 +49,9 @@
     del(key) { try { localStorage.removeItem('pt-' + key); } catch (e) { /* ignore */ } },
   };
 
-  const settings = Object.assign({ auto: false, conflicts: true, haptics: true, timer: true }, store.get('settings', {}));
+  const settings = Object.assign({ theme: 'garden', auto: false, conflicts: true, haptics: true, timer: false }, store.get('settings', {}));
+  // ?theme=night etc. previews a theme without saving it.
+  try { const q = new URLSearchParams(location.search).get('theme'); if (q && THEMES[q]) settings.theme = q; } catch (e) { /* ignore */ }
   const stats = Object.assign({ solved: 0, best: {}, daily: {}, streak: 0, bestStreak: 0, lastDaily: null }, store.get('stats', {}));
 
   let game = null;          // current game state
@@ -155,7 +176,7 @@
     $('gameTitle').textContent = game.title;
     buildBoard();
     render();
-    $('status').textContent = game.solved ? 'Solved! 🌼' : 'Tap once for a pebble, twice for a bloom.';
+    $('status').textContent = game.solved ? 'Solved! 🌼' : tapHint();
     saveGame();
     if (!game.solved) startTimer();
   }
@@ -211,10 +232,10 @@
       const want = v === BLOOM ? 'b' : v === PEBBLE ? 'p' : '';
       if (el.dataset.v !== want) {
         el.dataset.v = want;
-        el.innerHTML = v === BLOOM ? BLOOM_SVG : v === PEBBLE ? '<div class="pebble"></div>' : '';
+        el.innerHTML = v === BLOOM ? theme().svg : v === PEBBLE ? '<div class="mark"></div>' : '';
       }
       el.classList.toggle('clash', settings.conflicts && bad.has(i));
-      el.setAttribute('aria-label', v === BLOOM ? 'bloom' : v === PEBBLE ? 'pebble' : 'empty');
+      el.setAttribute('aria-label', v === BLOOM ? theme().piece : v === PEBBLE ? 'not here' : 'empty');
     });
     $('undoBtn').disabled = !game.history.length || game.solved;
     $('hintBtn').disabled = game.solved;
@@ -389,14 +410,14 @@
     const wrong = M.findIndex((v, i) => v === BLOOM && !sol.has(i));
     if (wrong >= 0) {
       flash(wrong);
-      $('status').textContent = 'That flashing bloom is in the wrong spot.';
+      $('status').textContent = `That flashing ${theme().piece} is in the wrong spot.`;
       return saveGame();
     }
     // 2) A pebble sitting on a bloom spot.
     const covered = M.findIndex((v, i) => v === PEBBLE && sol.has(i));
     if (covered >= 0) {
       flash(covered);
-      $('status').textContent = 'A bloom belongs under that flashing pebble.';
+      $('status').textContent = `A ${theme().piece} belongs under that flashing ✕.`;
       return saveGame();
     }
     // 3) Plant the bloom for the plot with the fewest open squares.
@@ -412,7 +433,7 @@
       applyChanges(changes);
       render();
       flash(best);
-      $('status').textContent = 'Planted one bloom for you.';
+      $('status').textContent = `Placed one ${theme().piece} for you.`;
       checkWin();
       saveGame();
     }
@@ -463,7 +484,7 @@
     $('winTitle').textContent = game.mode === 'daily' ? "Today's garden is in bloom!" : 'Garden complete!';
     $('winText').innerHTML = lines.join('<br>');
     $('winNext').textContent = game.mode === 'daily' ? 'Free play' : 'Next garden';
-    $('winDlg').querySelector('.win-flower').innerHTML = BLOOM_SVG;
+    $('winDlg').querySelector('.win-flower').innerHTML = theme().svg;
     $('winDlg').showModal();
   }
 
@@ -498,6 +519,33 @@
       </div>
       <table class="stat-table"><tr><th>Size</th><th>Best time (no hints)</th></tr>${rows}</table>`;
     $('statsDlg').showModal();
+  }
+
+  function applyTheme() {
+    const t = theme();
+    document.documentElement.dataset.theme = settings.theme;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m, k) => m.setAttribute('content', t.color[k] || t.color[0]));
+    document.querySelectorAll('[data-word]').forEach((el) => { el.textContent = t[el.dataset.word]; });
+    const wrap = $('themes');
+    wrap.innerHTML = '';
+    for (const [key, th] of Object.entries(THEMES)) {
+      const b = document.createElement('button');
+      b.className = 'theme-btn';
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(key === settings.theme));
+      b.innerHTML = `<span class="sw">${th.sw.map((c) => `<i style="background:${c}"></i>`).join('')}</span>${th.name}`;
+      b.onclick = () => {
+        settings.theme = key;
+        store.set('settings', settings);
+        applyTheme();
+        if (game && !$('game').hidden) {
+          cells.forEach((el) => { el.dataset.v = 'x'; });
+          render();
+          if (!game.solved) $('status').textContent = tapHint();
+        }
+      };
+      wrap.appendChild(b);
+    }
   }
 
   function bindSettings() {
@@ -549,6 +597,7 @@
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
+  applyTheme();
   bindSettings();
   renderHome();
   if (!store.get('seenHow', false)) { store.set('seenHow', true); $('howDlg').showModal(); }

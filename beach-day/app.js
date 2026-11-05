@@ -20,6 +20,8 @@
   let selected = -1;
   let hintMove = null;  // { a, b } while a hint is showing
   let statusTimer = 0;
+  let busy = false;
+  let plan = null;      // the rest of the solution the last hint came from     // true while a pour is animating
 
   const highest = () => progress.done.reduce((m, l) => Math.max(m, l), 0);
   const nextLevel = () => highest() + 1;
@@ -33,7 +35,7 @@
       const cv = document.createElement('canvas'); cv.width = cv.height = 64;
       const ctx = cv.getContext('2d'); const img = ctx.createImageData(64, 64);
       for (let i = 0; i < img.data.length; i += 4) {
-        const v = 205 + Math.floor(Math.random() * 50);
+        const v = 212 + Math.floor(Math.random() * 43);
         img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
       }
       ctx.putImageData(img, 0, 0);
@@ -77,6 +79,7 @@
     selected = -1; hintMove = null;
     $('home').hidden = true; $('game').hidden = false;
     $('gameTitle').textContent = `Level ${game.level}`;
+    corked = new Set(game.tubes.map((t, i) => (t.length && E.isDone(t) ? i : -1)));
     closeHint(); layout(); render(); updateStatus(); saveGame();
   }
   function saveGame() { if (game) store.set('current', game); }
@@ -109,19 +112,20 @@
     b.style.setProperty('--neck', Math.round(tw * 0.5) + 'px');
   }
 
-  function render(anim) {
+  let corked = new Set(); // bottles already showing a cork, so only new corks drop in
+  function render() {
     const b = $('board');
     let html = '';
+    const nowCorked = new Set();
     game.tubes.forEach((t, i) => {
       const cls = ['tube'];
       if (i === selected) cls.push('lifted');
-      if (t.length && E.isDone(t)) cls.push('done');
+      if (t.length && E.isDone(t)) { cls.push('done'); if (!corked.has(i)) cls.push('just-done'); nowCorked.add(i); }
       if (hintMove && hintMove.a === i) cls.push('why');
       if (hintMove && hintMove.b === i) cls.push('target');
       let layers = '';
       t.forEach((c, k) => {
-        const isNew = anim && anim.to === i && k >= t.length - anim.count;
-        layers += `<div class="sand${isNew ? ' pour-in' : ''}" style="--c:${sandVar(c)};background-position:0 ${-k * 37}px"></div>`;
+        layers += sandDiv(c, k);
       });
       let tag = '';
       if (hintMove && hintMove.a === i) tag = '<span class="tag hint-tag">From</span>';
@@ -131,28 +135,155 @@
       html += `<button class="${cls.join(' ')}" data-i="${i}" aria-label="${label}"><span class="rim"></span><span class="cork"></span><div class="glass">${layers}</div>${tag}</button>`;
     });
     b.innerHTML = html;
+    corked = nowCorked;
     $('undoBtn').disabled = !game.history.length;
     $('tubeBtn').disabled = game.extra || game.won;
     $('gameSub').textContent = game.pours ? `${game.pours} pour${game.pours === 1 ? '' : 's'}` : `${E.colorsFor(game.level)} colors`;
-    if (anim) pourStream(anim);
+  }
+  const sandDiv = (c, k, extra) => `<div class="sand" style="--c:${sandVar(c)};background-position:0 ${-k * 37}px;${extra || ''}"></div>`;
+
+  /* ---------- Pouring animation ----------
+     The bottle lifts over the target, tips toward it, and a stream of loose grains
+     falls from its mouth while the sand level drops in one bottle and rises in the other. */
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  function cssColor(c) {
+    return getComputedStyle(document.documentElement).getPropertyValue(`--sand-${c}`).trim() || '#e8c070';
+  }
+  function shade(hex, amt) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex); if (!m) return hex;
+    const n = parseInt(m[1], 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(v + amt)));
+    return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
   }
 
-  function pourStream(anim) {
-    const b = $('board');
-    const from = b.children[anim.from], to = b.children[anim.to];
-    if (!from || !to) return;
-    const br = b.getBoundingClientRect(), fr = from.getBoundingClientRect(), tr = to.getBoundingClientRect();
-    const unit = parseFloat(getComputedStyle(b).getPropertyValue('--unit')) || 40;
-    const surface = tr.bottom - br.top - 3 - (game.tubes[anim.to].length - anim.count) * unit;
-    const topY = Math.min(fr.top, tr.top) - br.top - 14;
-    const s = document.createElement('div');
-    s.className = 'stream';
-    s.style.left = (tr.left - br.left + tr.width / 2 - 3) + 'px';
-    s.style.top = topY + 'px';
-    s.style.height = Math.max(10, surface - topY) + 'px';
-    s.style.background = sandVar(anim.color);
-    b.appendChild(s);
-    setTimeout(() => s.remove(), 500);
+  async function animatePour(a, b, count, color, destBefore) {
+    const board = $('board');
+    const src = board.children[a], dst = board.children[b];
+    if (!src || !dst || reduceMotion) return;
+    const br = board.getBoundingClientRect();
+    const sr = src.getBoundingClientRect(), dr = dst.getBoundingClientRect();
+    const unit = parseFloat(getComputedStyle(board).getPropertyValue('--unit')) || 40;
+    const side = (sr.left + sr.width / 2) <= (dr.left + dr.width / 2) ? 1 : -1;
+
+    // A floating copy of the source bottle does the pouring; the real one is hidden meanwhile.
+    const fly = src.cloneNode(true);
+    fly.classList.remove('lifted', 'why', 'target');
+    fly.classList.add('flying');
+    fly.querySelectorAll('.tag').forEach((t) => t.remove());
+    Object.assign(fly.style, { left: (sr.left - br.left) + 'px', top: (sr.top - br.top) + 'px', width: sr.width + 'px', height: sr.height + 'px' });
+    board.appendChild(fly);
+    src.style.visibility = 'hidden';
+
+    // The mouth (top centre) ends up just above and slightly to the near side of the target's mouth.
+    const mouthX = dr.left - br.left + dr.width / 2 - side * dr.width * 0.12;
+    const mouthY = dr.top - br.top - unit * 0.35;
+    const dx = mouthX - (sr.left - br.left + sr.width / 2);
+    const dy = mouthY - (sr.top - br.top);
+    const tilt = side * 112;
+    const moveMs = 380, flowMs = 260 + 200 * count, fallMs = 240, backMs = 340;
+
+    // As the bottle tips past level, its sand slides down toward the mouth. A spacer at the
+    // bottom of the copy grows to push the layers there, and keeps growing as sand pours out.
+    const flyGlass = fly.querySelector('.glass');
+    const srcLen = game.history.length ? game.history[game.history.length - 1].tubes[a].length : count;
+    const empty = Math.max(0, flyGlass.clientHeight - 3 - srcLen * unit - 2);
+    flyGlass.insertAdjacentHTML('afterbegin', '<div class="spacer" style="height:0px"></div>');
+    const spacer = flyGlass.firstElementChild;
+
+    await nextFrame();
+    spacer.style.transition = `height ${moveMs}ms ease-in ${moveMs * 0.35}ms`;
+    spacer.style.height = empty + 'px';
+    fly.style.transition = `transform ${moveMs}ms cubic-bezier(.45,.05,.3,1)`;
+    fly.style.transform = `translate(${dx}px, ${dy}px) rotate(${tilt}deg)`;
+    await wait(moveMs - 40);
+
+    // Sand leaves the tipped bottle...
+    const flyLayers = [...fly.querySelectorAll('.sand')].slice(-count);
+    flyLayers.forEach((el) => { el.style.transition = `height ${flowMs}ms linear`; el.style.height = '0px'; });
+    spacer.style.transition = `height ${flowMs}ms linear`;
+    spacer.style.height = (empty + count * unit) + 'px';
+    // ...and builds up in the target a moment later.
+    const glass = dst.querySelector('.glass');
+    const added = [];
+    for (let i = 0; i < count; i++) {
+      glass.insertAdjacentHTML('beforeend', sandDiv(color, destBefore + i, 'height:0px'));
+      added.push(glass.lastElementChild);
+    }
+    void glass.offsetHeight;
+    added.forEach((el) => { el.style.transition = `height ${flowMs}ms linear ${fallMs * 0.6}ms`; el.style.height = unit + 'px'; });
+
+    // Falling grains, drawn on a canvas over the board.
+    const surface0 = dr.bottom - br.top - 5 - destBefore * unit;
+    await grains({ x: mouthX, y: mouthY + 2, surface0, rise: count * unit, flowMs, fallMs, color: cssColor(color), side });
+
+    fly.style.transition = `transform ${backMs}ms cubic-bezier(.45,.05,.3,1)`;
+    fly.style.transform = 'none';
+    spacer.style.transition = `height ${backMs * 0.8}ms ease-out`;
+    spacer.style.height = '0px';
+    await wait(backMs);
+  }
+
+  function grains(o) {
+    return new Promise((resolve) => {
+      const board = $('board');
+      const cv = document.createElement('canvas');
+      const W = board.clientWidth, H = board.clientHeight;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = W * dpr; cv.height = H * dpr; cv.className = 'grain-canvas';
+      board.appendChild(cv);
+      const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+      const tones = [o.color, shade(o.color, -28), shade(o.color, 22), shade(o.color, -12)];
+      const parts = [];
+      const t0 = performance.now();
+      let last = t0;
+      function frame(now) {
+        const dt = Math.min(32, now - last) / 16.7; last = now;
+        const el = now - t0;
+        const flowing = el < o.flowMs;
+        // The stream starts thin, swells, and thins out again at the end.
+        const k = flowing ? Math.sin(Math.PI * Math.min(1, el / o.flowMs)) : 0;
+        const spawn = flowing ? Math.round((5 + 9 * k) * dt) : 0;
+        const wob = Math.sin(el / 90) * 1.2;
+        for (let i = 0; i < spawn; i++) {
+          parts.push({
+            x: o.x + wob + (Math.random() - .5) * (1.5 + 2.5 * k),
+            y: o.y + Math.random() * 3,
+            vx: o.side * (0.25 + Math.random() * 0.35) * (1 - el / o.flowMs) + (Math.random() - .5) * 0.15,
+            vy: 0.6 + Math.random() * 0.8,
+            s: 1.1 + Math.random() * 1.5,
+            c: tones[(Math.random() * tones.length) | 0],
+          });
+        }
+        // The landing spot rises as the target fills.
+        const fill = Math.max(0, Math.min(1, (el - o.fallMs * 0.6) / o.flowMs));
+        const surface = o.surface0 - o.rise * fill;
+        ctx.clearRect(0, 0, W, H);
+        for (let i = parts.length - 1; i >= 0; i--) {
+          const p = parts[i];
+          p.vy += 0.38 * dt; p.vx *= 0.97;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          if (p.y >= surface - Math.random() * 3) {
+            parts.splice(i, 1);
+            continue;
+          }
+          ctx.fillStyle = p.c;
+          ctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s * 1.2);
+        }
+        // A soft puff where the grains land.
+        if (flowing && el > o.fallMs * 0.5) {
+          ctx.globalAlpha = 0.35 * k;
+          ctx.fillStyle = o.color;
+          ctx.beginPath(); ctx.ellipse(o.x, surface - 1, 4 + 4 * k, 2, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        if (flowing || parts.length) requestAnimationFrame(frame);
+        else { cv.remove(); resolve(); }
+      }
+      requestAnimationFrame(frame);
+    });
   }
 
   function buzz(ms) { if (settings.haptics && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { /* ignore */ } }
@@ -164,6 +295,7 @@
   }
 
   function tap(i) {
+    if (busy) return;
     if (!game || game.won) return;
     const t = game.tubes[i];
     if (!t) return;
@@ -188,17 +320,23 @@
     } else { selected = -1; render(); say(why); }
   }
 
-  function doPour(a, b) {
+  async function doPour(a, b) {
+    if (busy) return;
     closeHint();
     pushHistory();
+    const destBefore = game.tubes[b].length;
     const r = E.pour(game.tubes, a, b);
     game.tubes = r.tubes; game.pours++;
     selected = -1;
-    render({ from: a, to: b, count: r.count, color: r.color });
+    saveGame();
     buzz(12);
+    busy = true;
+    say('');
+    try { await animatePour(a, b, r.count, r.color, destBefore); } catch (e) { /* drawing problems never block play */ }
+    busy = false;
+    render();
     if (E.isWon(game.tubes)) { win(); return; }
     updateStatus();
-    saveGame();
   }
 
   function updateStatus() {
@@ -220,6 +358,7 @@
   const key = () => game ? JSON.stringify(game.tubes) : '';
 
   function undo() {
+    if (busy) return;
     if (!game || !game.history.length || game.won) return;
     const s = game.history.pop();
     game.tubes = s.tubes; game.extra = s.extra; game.pours = s.pours;
@@ -227,6 +366,7 @@
   }
 
   function addTube() {
+    if (busy) return;
     if (!game || game.extra || game.won) return;
     pushHistory();
     game.tubes.push([]); game.extra = true; selected = -1;
@@ -236,6 +376,7 @@
   }
 
   function restart() {
+    if (busy) return;
     if (!game || game.won) return;
     if (!game.history.length) return;
     pushHistory();
@@ -246,9 +387,19 @@
 
   /* ---------- Hints ---------- */
   function hint() {
+    if (busy) return;
     if (!game || game.won) return;
     selected = -1;
-    const sol = E.solve(game.tubes);
+    // Follow one solution plan while the player keeps to it, so hints never go in circles.
+    const here = JSON.stringify(game.tubes);
+    let sol;
+    if (plan && plan.at === here) sol = plan.moves;
+    else sol = E.solve(game.tubes);
+    plan = null;
+    if (sol && sol.length) {
+      const after = E.pour(game.tubes, sol[0].a, sol[0].b);
+      plan = { at: JSON.stringify(after.tubes), moves: sol.slice(1) };
+    }
     if (!sol) {
       // Find the most recent point that can still be finished.
       let steps = 0;
@@ -313,7 +464,7 @@
     say('All sorted!');
     $('winTitle').textContent = 'All sorted!';
     $('winText').textContent = `Level ${game.level} finished in ${game.pours} pours. Every bottle is one color.`;
-    setTimeout(() => $('winDlg').showModal(), 750);
+    setTimeout(() => $('winDlg').showModal(), 600);
   }
 
   /* ---------- Look ---------- */

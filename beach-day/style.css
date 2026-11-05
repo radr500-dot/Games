@@ -6,8 +6,10 @@
 :root, :root[data-theme="light"] {
   --bg: #eef5f3; --paper: #ffffff; --ink: #234650; --ink-soft: #5d7c84;
   --card: #dcebe8; --accent: #2f9f95; --play: #2f9f95;
-  --glass: #ffffff; --glass-edge: #8fbcbe; --glass-shine: rgba(255, 255, 255, .75);
-  --cork: #c79a6b; --cork-line: #8a6440;
+  --glass: rgba(236, 248, 247, .85); --glass-edge: rgba(120, 172, 176, .85); --glass-shine: rgba(255, 255, 255, .8);
+  --glass-inner: rgba(255, 255, 255, .7); --glass-dim: rgba(30, 80, 90, .14); --rim-hi: #ffffff; --rim-lo: #79a7ab;
+  --floor-shadow: rgba(30, 70, 80, .22);
+  --cork: #c9995f; --cork-hi: #e6c08c; --cork-lo: #946a3c; --cork-dot: rgba(95, 60, 28, .45);
   --sand-0: #f08a7e; --sand-1: #f5cf63; --sand-2: #3fb2a6; --sand-3: #6f7fd1;
   --sand-4: #c77bb8; --sand-5: #b8865a; --sand-6: #8cc46a;
   color-scheme: light;
@@ -16,8 +18,10 @@
 :root[data-theme="dark"] {
   --bg: #14262e; --paper: #1c333d; --ink: #e3f2f0; --ink-soft: #9dbcc0;
   --card: #234049; --accent: #5fd0c4; --play: #2a7f86;
-  --glass: #1e3640; --glass-edge: #5a929c; --glass-shine: rgba(255, 255, 255, .14);
-  --cork: #b48a5e; --cork-line: #e6c79f;
+  --glass: rgba(120, 190, 200, .10); --glass-edge: rgba(130, 195, 202, .6); --glass-shine: rgba(255, 255, 255, .22);
+  --glass-inner: rgba(200, 240, 245, .18); --glass-dim: rgba(0, 0, 0, .35); --rim-hi: #b9e3e6; --rim-lo: #3f6f78;
+  --floor-shadow: rgba(0, 0, 0, .45);
+  --cork: #b8874f; --cork-hi: #dcb47c; --cork-lo: #7d5630; --cork-dot: rgba(60, 35, 15, .6);
   --sand-0: #ff9e92; --sand-1: #ffd96f; --sand-2: #5fd0c4; --sand-3: #8e9cf0;
   --sand-4: #e094d2; --sand-5: #d3a275; --sand-6: #a5dc82;
   --shadow: 0 6px 18px rgba(0, 0, 0, .35);
@@ -86,42 +90,81 @@ h1 { font-size: 34px; margin: 12px 0 4px; letter-spacing: -.5px; }
   position: relative; width: var(--tw); height: calc(var(--unit) * 4 + var(--neck)); border: 0; padding: 0; background: none;
   transition: transform .18s ease;
 }
+/* Soft shadow on the "table" under each bottle */
+.tube::before {
+  content: ""; position: absolute; left: 8%; right: 8%; bottom: -7px; height: 10px; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--floor-shadow), transparent); transition: opacity .18s ease;
+}
+.tube.lifted::before { opacity: .45; }
+.tube.flying::before { display: none; }
 .tube .glass {
-  position: absolute; inset: 0; border: 2.5px solid var(--glass-edge); border-top-width: 0;
-  border-radius: 6px 6px calc(var(--tw) / 2) calc(var(--tw) / 2); background: var(--glass); overflow: hidden;
+  position: absolute; inset: 0; border: 2px solid var(--glass-edge); border-top-width: 0;
+  border-radius: 3px 3px calc(var(--tw) / 2) calc(var(--tw) / 2); background: var(--glass); overflow: hidden;
   display: flex; flex-direction: column-reverse; padding: 0 0 3px;
+  box-shadow:
+    inset 0 0 0 1.5px var(--glass-inner),          /* thickness of the glass wall */
+    inset 5px 0 7px -3px var(--glass-inner),
+    inset -6px 0 9px -4px var(--glass-dim);
 }
-.tube .rim {
-  position: absolute; left: -4px; right: -4px; top: -3px; height: 7px; border-radius: 4px;
-  background: var(--glass-edge); z-index: 2;
-}
+/* Shine: a bright stripe on the left, a thin one on the right, and a darker curve on the far side */
 .tube .glass::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: linear-gradient(90deg, transparent 12%, var(--glass-shine) 22%, transparent 36%, transparent 74%, rgba(0, 0, 0, .10) 100%);
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .10) 0%, transparent 10%, var(--glass-shine) 16%, var(--glass-shine) 22%, transparent 30%,
+      transparent 70%, rgba(255, 255, 255, .22) 78%, transparent 82%, rgba(0, 0, 0, .14) 100%),
+    radial-gradient(60% 18% at 50% 100%, rgba(255, 255, 255, .25), transparent 70%);
+}
+/* Rolled glass lip at the mouth */
+.tube .rim {
+  position: absolute; left: -3px; right: -3px; top: -4px; height: 8px; border-radius: 5px; z-index: 2;
+  background: linear-gradient(180deg, var(--rim-hi) 0%, var(--glass-edge) 55%, var(--rim-lo) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
 }
 .sand {
   flex: none; height: var(--unit); width: 100%;
-  background-color: var(--c); background-image: var(--grain); background-size: 64px 64px; background-blend-mode: multiply;
+  background-color: var(--c); background-image: var(--grain); background-size: 40px 40px; background-blend-mode: multiply;
 }
-.sand.pour-in { animation: fill-in .38s ease-out both; transform-origin: bottom; }
-@keyframes fill-in { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.sand:last-child { box-shadow: inset 0 2px 0 rgba(255, 255, 255, .22); }
 .tube.lifted { transform: translateY(-18px); }
-.tube.lifted .glass { box-shadow: 0 0 0 3px var(--accent); }
+.tube.lifted .glass, .tube.why .glass, .tube.target .glass { outline: 3px solid var(--accent); outline-offset: 2px; }
+.tube.why .glass { outline-color: var(--ink); }
+.tube.target .glass { animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { outline-offset: 5px; } }
+
+/* Cork: tapered, speckled, rounded like a cylinder, pushed partway into the neck */
 .tube.done .cork {
-  position: absolute; left: 18%; right: 18%; top: -14px; height: 16px; border-radius: 5px 5px 3px 3px;
-  background: var(--cork); border: 2px solid var(--cork-line); z-index: 3; animation: cork .35s ease-out;
+  position: absolute; left: 50%; top: calc(var(--tw) * -.24); z-index: 3;
+  width: calc(var(--tw) * .64); height: calc(var(--tw) * .56); transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
+  border-radius: 3px;
+  background:
+    radial-gradient(circle at 20% 30%, var(--cork-dot) 0 .6px, transparent 1.1px),
+    radial-gradient(circle at 70% 60%, var(--cork-dot) 0 .8px, transparent 1.3px),
+    radial-gradient(circle at 45% 80%, var(--cork-dot) 0 .5px, transparent 1px),
+    radial-gradient(circle at 85% 25%, var(--cork-dot) 0 .5px, transparent 1px),
+    radial-gradient(ellipse at 35% 55%, var(--cork-dot) 0 .4px, transparent 1px),
+    linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, .18) 100%),
+    linear-gradient(90deg, var(--cork-lo) 0%, var(--cork) 22%, var(--cork-hi) 42%, var(--cork) 62%, var(--cork-lo) 100%);
+  background-size: 7px 6px, 9px 8px, 6px 7px, 11px 7px, 5px 6px, 100% 100%, 100% 100%;
 }
-@keyframes cork { from { transform: translateY(-14px); opacity: 0; } }
-.tube.why .glass { box-shadow: 0 0 0 3px var(--ink); }
-.tube.target .glass { box-shadow: 0 0 0 3px var(--accent); animation: breathe 1.6s ease-in-out infinite; }
-@keyframes breathe { 50% { box-shadow: 0 0 0 6px var(--accent); } }
+.tube.just-done .cork { animation: cork .45s cubic-bezier(.3, 1.4, .5, 1) both; }
+/* Top face of the cork */
+.tube.done .cork::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30%; border-radius: 50%;
+  background: linear-gradient(180deg, var(--cork-hi), var(--cork));
+  box-shadow: inset 0 -1px 0 var(--cork-lo);
+}
+@keyframes cork { from { transform: translate(-50%, -16px); opacity: 0; } }
+
+.tube.flying { position: absolute; z-index: 6; transform-origin: 50% 0; pointer-events: none; will-change: transform; }
+.tube.flying .glass { outline: 0; }
+.spacer { flex: none; }
+.grain-canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 7; }
 .tube .tag {
   position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); white-space: nowrap;
   font-size: 12px; font-weight: 700; color: var(--ink-soft);
 }
 .tube .tag.hint-tag { background: var(--accent); color: var(--bg); padding: 2px 7px; border-radius: 8px; }
-.stream { position: absolute; width: 6px; border-radius: 3px; pointer-events: none; z-index: 5; animation: stream .42s ease-in both; }
-@keyframes stream { 0% { transform: scaleY(0); transform-origin: top; opacity: 1; } 45% { transform: scaleY(1); opacity: 1; } 100% { opacity: 0; } }
 
 .status { text-align: center; color: var(--ink-soft); margin: 4px 8px 10px; min-height: 22px; font-size: 15px; }
 .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding-bottom: 6px; }

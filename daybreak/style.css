@@ -67,7 +67,7 @@ h1 { font-size: 34px; margin: 12px 0 4px; letter-spacing: -.5px; }
 
 /* Game */
 .bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.bar > .icon-btn:first-child { margin-right: 52px; }
+.bar-left, .bar-right { display: flex; gap: 8px; }
 .bar-right { display: flex; gap: 8px; }
 .bar-mid { text-align: center; }
 .bar-title { font-weight: 700; font-size: 18px; }
@@ -183,3 +183,14 @@ dialog form { margin-top: 12px; }
 }
 .cell.c-tl { border-top-left-radius: 9px; } .cell.c-tr { border-top-right-radius: 9px; }
 .cell.c-bl { border-bottom-left-radius: 9px; } .cell.c-br { border-bottom-right-radius: 9px; }
+
+/* Way back to the My Games home screen */
+.hub-pill {
+  position: absolute; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 16px 0 12px; border-radius: 999px; background: var(--card); color: var(--ink);
+  font-weight: 700; font-size: 15px; text-decoration: none; box-shadow: var(--shadow);
+}
+.hub-pill svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.hub-pill:active, .hub-link:active { transform: scale(.94); }
+a.icon-btn { color: var(--ink); text-decoration: none; }
+.home-head { margin-top: 64px; }

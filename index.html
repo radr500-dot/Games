@@ -2,23 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>My Games</title>
-  <style>
-    :root { --bg: #f5efe3; --ink: #2f3d2b; --card: #fffaf0; color-scheme: light dark; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #1d231b; --ink: #ece6d6; --card: #262d23; } }
-    body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, system-ui, sans-serif; }
-    main { max-width: 520px; margin: 0 auto; padding: 32px 16px; }
-    a { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 18px; background: var(--card); color: inherit; text-decoration: none; margin-bottom: 12px; }
-    img { width: 56px; height: 56px; border-radius: 14px; }
-    small { display: block; opacity: .7; }
-  </style>
+  <meta name="description" content="All my ad-free games in one place.">
+  <meta name="theme-color" content="#eef3ea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="My Games">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <script>
+    // Set light/dark before the page paints so it never flashes the wrong colors.
+    (function () {
+      var a = 'auto';
+      try { a = localStorage.getItem('hub-appearance') || 'auto'; } catch (e) {}
+      var dark = a === 'dark' || (a === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'forest' : 'meadow';
+    })();
+  </script>
+  <link rel="stylesheet" href="hub.css">
 </head>
 <body>
   <main>
-    <h1>My Games</h1>
-    <a href="plot-twist/"><img src="plot-twist/icons/icon-192.png" alt=""><span><b>Plot Twist</b><small>One bloom per row, column and plot.</small></span></a>
-    <a href="daybreak/"><img src="daybreak/icons/icon-192.png" alt=""><span><b>Daybreak</b><small>Balance the suns and moons.</small></span></a>
+    <header class="top">
+      <div>
+        <p class="hello" id="hello">Hello</p>
+        <h1>My Games</h1>
+      </div>
+      <button id="modeBtn" class="mode" aria-label="Switch light or dark"></button>
+    </header>
+
+    <div id="list" class="list" aria-live="polite"></div>
+    <p class="soon">New games show up here on their own.</p>
   </main>
+  <script src="hub.js"></script>
 </body>
 </html>

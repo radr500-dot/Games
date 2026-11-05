@@ -430,6 +430,7 @@
   });
   document.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+  window.addEventListener('pagehide', () => saveGame());
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   window.addEventListener('resize', sizeSigns);
 

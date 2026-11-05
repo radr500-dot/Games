@@ -696,6 +696,7 @@
   board.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('keydown', onKey);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+  window.addEventListener('pagehide', () => saveGame());
   // Stop iOS double-tap zoom and pinch gestures inside the app.
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });

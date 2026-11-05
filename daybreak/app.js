@@ -141,10 +141,29 @@
     board.style.setProperty('--cellpx', (board.clientWidth / game.n) + 'px');
   }
 
+  // Rule-break stripes wait a moment after each tap, so a second tap (sun -> moon) can land first.
+  const CLASH_DELAY = 1500;
+  let clashHold = false, clashTimer = null, shownCells = new Set(), shownClues = new Set();
+  function holdClashes() {
+    clashHold = true;
+    clearTimeout(clashTimer);
+    clashTimer = setTimeout(() => {
+      clashHold = false;
+      if (game && !$('game').hidden) { render(); if (!game.solved) updateStatus(); }
+    }, CLASH_DELAY);
+  }
+  // Rule breaks to show right now: while holding, only ones that were already on screen.
+  function visibleViolations() {
+    if (!settings.conflicts) return [];
+    const all = E.violations(game.grid, game.n, game.clues);
+    if (!clashHold) return all;
+    return all.filter((v) => v.cells.every((i) => shownCells.has(i)) && (!v.clue || shownClues.has(v.clue)));
+  }
   function render() {
-    const bad = settings.conflicts ? E.violations(game.grid, game.n, game.clues) : [];
+    const bad = visibleViolations();
     const badCells = new Set(), badClues = new Set();
     for (const v of bad) { v.cells.forEach((i) => badCells.add(i)); if (v.clue) badClues.add(v.clue); }
+    shownCells = badCells; shownClues = badClues;
     for (let i = 0; i < cells.length; i++) {
       const v = game.grid[i], c = cells[i];
       if (c.dataset.v !== String(v)) { c.innerHTML = pieceSvg(v); c.dataset.v = v; }
@@ -177,11 +196,12 @@
   function afterMove() {
     buzz(8);
     closeHint();
+    holdClashes();
     render(); saveGame(); checkWin();
     if (!game.solved) updateStatus();
   }
   function updateStatus() {
-    const bad = settings.conflicts ? E.violations(game.grid, game.n, game.clues) : [];
+    const bad = visibleViolations();
     if (bad.length) { $('status').textContent = describeViolation(bad[0]); return; }
     const left = game.grid.filter((v) => !v).length;
     $('status').textContent = left ? `${left} square${left > 1 ? 's' : ''} to go.` : '';
@@ -197,7 +217,7 @@
     if (!game.history.length || game.solved) return;
     const [i, v] = game.history.pop();
     game.grid[i] = v;
-    closeHint(); render(); saveGame(); updateStatus();
+    closeHint(); holdClashes(); render(); saveGame(); updateStatus();
   }
   function clearBoard() {
     if (game.solved) return;

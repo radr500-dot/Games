@@ -41,6 +41,8 @@ Note: on iPhone each home-screen icon keeps its own saved games. Games opened fr
 ## Ground rules
 
 - No ads, no forced waits, no pop-ups.
+- Every game has a clear way back to the My Games home screen: a "My Games" button on its start screen and a home icon in the top bar while playing. A game isn't finished without it.
+- Every game is listed in `games.json` so it shows on the home screen.
 - Every game is an original build with its own name, art, and levels. Games can play like a genre I enjoy, but they don't copy an existing game's name, characters, art, or music.
 
 ## Games

@@ -1,6 +1,6 @@
 // Offline support: keep a copy of the app so it opens with no signal.
 // Only this game's old caches are cleared; other games and My Games share the same site storage.
-const CACHE = 'daybreak-v3';
+const CACHE = 'daybreak-v4';
 const FILES = [
   './', './index.html', './style.css', './app.js', './engine.js',
   './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'
@@ -14,11 +14,17 @@ self.addEventListener('activate', (e) => {
       .then(() => self.clients.claim())
   );
 });
+// Always check with the server (a quick "has it changed?") instead of trusting the
+// phone's own web cache, which can keep an old copy for minutes after an update.
+function fresh(req) {
+  if (new URL(req.url).origin !== self.location.origin) return fetch(req);
+  return fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
+}
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   // Network first (so updates arrive), falling back to the cached copy offline.
   e.respondWith(
-    fetch(e.request).then((res) => {
+    fresh(e.request).then((res) => {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(e.request, copy));
       return res;

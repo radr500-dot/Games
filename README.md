@@ -36,6 +36,9 @@ Note: on iPhone each home-screen icon keeps its own saved games. Games opened fr
    ```
 5. **Give the game a way back home.** Every game needs a "My Games" button (`<a href="../">`) on its own start screen and a home icon in its in-game top bar, like Plot Twist and Daybreak do (see `.hub-pill` and `.hub-link` in their `style.css`).
 6. If the game has a service worker, name its cache `<folder>-vN` and only delete caches that start with `<folder>-`. All games share one site, so clearing every other cache would wipe the other games' offline copies.
+   - Fetch network-first with `cache: 'no-cache'` (see the `fresh()` helper in any game's `sw.js`), so phones always check for a newer copy instead of using their own web cache.
+   - In the page, reload once on `controllerchange` and call `registration.update()` when the app comes back to the front (copy the block next to `serviceWorker.register` in Beach Day's `app.js`). Without this, a home-screen app on iPhone keeps running the old version after an update.
+   - Bump the `vN` in the cache name whenever the game changes.
 7. Add the game to the list below.
 
 ## Ground rules

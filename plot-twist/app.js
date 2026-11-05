@@ -708,6 +708,15 @@
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // When an update takes over, reload once so the new version shows right away
+    // (progress is saved). Also look for updates whenever the app comes back to the front.
+    if (navigator.serviceWorker.controller) {
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+    });
   }
 
   // Exposed for automated tests only.

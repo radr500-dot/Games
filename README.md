@@ -31,4 +31,5 @@ Games/
 
 ## Games
 
-_None yet. The first one is coming soon._
+- [Plot Twist](plot-twist/): one bloom per row, column and plot. Play at https://radr500-dot.github.io/Games/plot-twist/
+- [Daybreak](daybreak/): balance the suns and moons. Play at https://radr500-dot.github.io/Games/daybreak/

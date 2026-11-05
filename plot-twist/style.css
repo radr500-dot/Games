@@ -185,7 +185,7 @@ dialog form { margin-top: 12px; }
 .segmented button[aria-pressed="true"] { background: var(--paper); box-shadow: var(--shadow); }
 .setting-label { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); margin: 6px 0; }
 .bar-right { display: flex; gap: 8px; }
-.bar > .icon-btn:first-child { margin-right: 52px; }
+.bar-left, .bar-right { display: flex; gap: 8px; }
 .home-mode { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: calc(16px + env(safe-area-inset-right)); }
 #home { position: relative; }
 
@@ -200,3 +200,14 @@ dialog form { margin-top: 12px; }
 .cell.why::after { content: ""; position: absolute; inset: 3px; border: 2.5px dashed var(--ink); border-radius: 6px; opacity: .7; pointer-events: none; box-shadow: none; }
 .cell.target::after { content: ""; position: absolute; inset: 2px; border: 3px solid var(--accent); border-radius: 6px; pointer-events: none; box-shadow: 0 0 0 2px var(--paper); animation: breathe 1.6s ease-in-out infinite; }
 @keyframes breathe { 50% { transform: scale(.9); } }
+
+/* Way back to the My Games home screen */
+.hub-pill {
+  position: absolute; top: calc(16px + env(safe-area-inset-top)); left: calc(16px + env(safe-area-inset-left)); display: inline-flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 16px 0 12px; border-radius: 999px; background: var(--card); color: var(--ink);
+  font-weight: 700; font-size: 15px; text-decoration: none; box-shadow: var(--shadow);
+}
+.hub-pill svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.hub-pill:active, .hub-link:active { transform: scale(.94); }
+a.icon-btn { color: var(--ink); text-decoration: none; }
+.home-head { margin-top: 64px; }

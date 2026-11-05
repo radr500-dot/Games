@@ -1,0 +1,16 @@
+{
+  "games": [
+    {
+      "folder": "plot-twist",
+      "name": "Plot Twist",
+      "tagline": "One bloom per row, column and plot.",
+      "icon": "plot-twist/icons/icon-192.png"
+    },
+    {
+      "folder": "daybreak",
+      "name": "Daybreak",
+      "tagline": "Balance the suns and moons.",
+      "icon": "daybreak/icons/icon-192.png"
+    }
+  ]
+}

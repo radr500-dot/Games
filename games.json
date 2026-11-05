@@ -11,6 +11,12 @@
       "name": "Daybreak",
       "tagline": "Balance the suns and moons.",
       "icon": "daybreak/icons/icon-192.png"
+    },
+    {
+      "folder": "beach-day",
+      "name": "Beach Day",
+      "tagline": "Pour the sand into matching bottles.",
+      "icon": "beach-day/icons/icon-192.png"
     }
   ]
 }

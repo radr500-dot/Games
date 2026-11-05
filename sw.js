@@ -1,9 +1,9 @@
 // Offline support for the My Games home screen. Each game has its own service
 // worker in its folder, which takes over inside that folder.
-const CACHE = 'my-games-v1';
+const CACHE = 'my-games-v2';
 const FILES = [
   './', './index.html', './hub.css', './hub.js', './games.json', './manifest.webmanifest',
-  './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'
+  './icons/icon.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

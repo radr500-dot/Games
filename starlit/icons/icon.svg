@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" fill="#161a2e"/>
+<circle cx="92" cy="86" r="5" fill="#a9aed6"/><circle cx="430" cy="70" r="4" fill="#a9aed6"/><circle cx="452" cy="440" r="5" fill="#a9aed6"/><circle cx="60" cy="430" r="4" fill="#a9aed6"/>
+<rect x="71" y="71" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="147" y="71" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="223" y="71" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="299" y="71" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="375" y="71" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="71" y="147" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="147" y="147" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="223" y="147" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="299" y="147" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="375" y="147" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="71" y="223" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="147" y="223" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="223" y="223" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="299" y="223" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="375" y="223" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="71" y="299" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="147" y="299" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="223" y="299" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="299" y="299" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="375" y="299" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="71" y="375" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="147" y="375" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="223" y="375" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+<rect x="299" y="375" width="66" height="66" rx="14" fill="#f2cf6b"/>
+<rect x="375" y="375" width="66" height="66" rx="14" fill="none" stroke="#3a4168" stroke-width="4"/>
+</svg>

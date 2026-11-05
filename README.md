@@ -53,3 +53,4 @@ Home screen: https://radr500-dot.github.io/Games/
 - [Plot Twist](plot-twist/): one bloom per row, column and plot. Play at https://radr500-dot.github.io/Games/plot-twist/
 - [Daybreak](daybreak/): balance the suns and moons. Play at https://radr500-dot.github.io/Games/daybreak/
 - [Beach Day](beach-day/): pour the sand until every bottle is one color. Play at https://radr500-dot.github.io/Games/beach-day/
+- [Starlit](starlit/): fill the squares to find the hidden picture. Play at https://radr500-dot.github.io/Games/starlit/

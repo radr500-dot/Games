@@ -4,55 +4,24 @@
   --clash: #d0342c;
 }
 
-/* Theme: Garden (light; follows the phone's dark mode) */
+/* Light mode: Garden */
 :root, :root[data-theme="garden"] {
   --bg: #f5efe3; --paper: #fffaf0; --ink: #2f3d2b; --ink-soft: #6b7563; --line: #2f3d2b;
   --card: #ece4d3; --accent: #e08a1e;
   --mark: #2f3d2b; --piece-a: #ffffff; --piece-b: #e08a1e; --piece-line: #1f2a1c;
   --p0: #a9c98a; --p1: #f0a07c; --p2: #bba6e6; --p3: #f5d565; --p4: #8cc6e0;
-  --p5: #f4a9bb; --p6: #7fd1b5; --p7: #d9d2c5; --p8: #9aa6f0; --p9: #dcae7a;
+  --p5: #f4a9bb; --p6: #7fd1b5; --p7: #d9d2c5; --p8: #cde27a; --p9: #dcae7a;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root, :root[data-theme="garden"] {
-    --bg: #1d231b; --paper: #262d23; --ink: #ece6d6; --ink-soft: #a5ad9b; --line: #0c0f0b;
-    --card: #2b3328; --mark: #ffffff; --piece-line: #0c0f0b; --clash: #ff6b5b;
-    --shadow: 0 6px 18px rgba(0, 0, 0, .3);
-    --p0: #5f8a45; --p1: #b0603e; --p2: #7a62a8; --p3: #ad8f22; --p4: #3f86a3;
-    --p5: #a8566a; --p6: #2f8f70; --p7: #6b665d; --p8: #5662ad; --p9: #93683a;
-    color-scheme: dark;
-  }
-}
-
-/* Theme: Night Sky (always dark, golden stars) */
+/* Dark mode: Night Sky */
 :root[data-theme="night"] {
   --bg: #0f1526; --paper: #1a2238; --ink: #eef1fb; --ink-soft: #9aa3c0; --line: #05070d;
   --card: #1f2942; --accent: #ffc93c; --clash: #ff5f6d;
   --mark: rgba(255, 255, 255, .85); --piece-a: #ffd34d; --piece-b: #fff4c2; --piece-line: #7a5600;
   --shadow: 0 6px 18px rgba(0, 0, 0, .4);
-  --p0: #3a62b0; --p1: #7f4bb0; --p2: #23838e; --p3: #b04a72; --p4: #4a7a4a;
-  --p5: #a86d33; --p6: #5852c2; --p7: #2f80bd; --p8: #9a4c4c; --p9: #6a8436;
+  --p0: #3a62b0; --p1: #8a4fc0; --p2: #1f8f8a; --p3: #c0507a; --p4: #4f8a3c;
+  --p5: #c08a2a; --p6: #5a6378; --p7: #2aa3c7; --p8: #b84a3a; --p9: #8a9a2a;
   color-scheme: dark;
-}
-
-/* Theme: Bold (bright, high contrast) */
-:root[data-theme="bold"] {
-  --bg: #ffffff; --paper: #ffffff; --ink: #111111; --ink-soft: #555555; --line: #111111;
-  --card: #efefef; --accent: #111111; --clash: #e00000;
-  --mark: #111111; --piece-a: #111111; --piece-b: #ffffff; --piece-line: #111111;
-  --p0: #ff8a80; --p1: #ffd54f; --p2: #81d4fa; --p3: #a5d6a7; --p4: #ce93d8;
-  --p5: #ffab40; --p6: #4dd0e1; --p7: #f48fb1; --p8: #c5e1a5; --p9: #b0bec5;
-  color-scheme: light;
-}
-
-/* Theme: Paper & Ink (calm and minimal) */
-:root[data-theme="ink"] {
-  --bg: #faf8f4; --paper: #ffffff; --ink: #1c1c1c; --ink-soft: #707070; --line: #1c1c1c;
-  --card: #eeebe5; --accent: #1c1c1c; --clash: #c62828;
-  --mark: #6f6f6f; --piece-a: #1c1c1c; --piece-b: #ffffff; --piece-line: #1c1c1c;
-  --p0: #efe3c8; --p1: #cfe0f0; --p2: #f2d3d3; --p3: #d5eacd; --p4: #e2d6f0;
-  --p5: #f8e6b0; --p6: #c9e8e5; --p7: #e3e3e3; --p8: #f0d9c2; --p9: #d3d9f2;
-  color-scheme: light;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -130,14 +99,10 @@ h1 { font-size: 34px; margin: 12px 0 4px; letter-spacing: -.5px; }
   position: relative; display: grid; place-items: center;
   background: var(--paper);
 }
-/* Thick plot borders are drawn with inset shadows on the edges that face a different plot. */
-.cell.bt { box-shadow: inset 0 2px 0 var(--line); }
-.cell.bl { box-shadow: inset 2px 0 0 var(--line); }
-.cell.bt.bl { box-shadow: inset 0 2px 0 var(--line), inset 2px 0 0 var(--line); }
-.cell.bb::after, .cell.br::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
-.cell.bb::after { box-shadow: inset 0 -2px 0 var(--line); }
-.cell.br::after { box-shadow: inset -2px 0 0 var(--line); }
-.cell.bb.br::after { box-shadow: inset 0 -2px 0 var(--line), inset -2px 0 0 var(--line); }
+/* Thick plot borders: each square draws its top/left edge when the square above/left is in another plot. */
+.cell.bt { box-shadow: inset 0 3px 0 var(--line); }
+.cell.bl { box-shadow: inset 3px 0 0 var(--line); }
+.cell.bt.bl { box-shadow: inset 0 3px 0 var(--line), inset 3px 0 0 var(--line); }
 
 /* "Not here" mark: a crisp little cross. */
 .cell .mark { position: relative; width: 32%; height: 32%; }
@@ -214,10 +179,24 @@ dialog form { margin-top: 12px; }
   .board { width: min(100%, 560px, calc(100dvh - 280px)); }
 }
 
-/* Theme picker */
-.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 10px; }
-.theme-btn { border: 2px solid transparent; border-radius: 14px; padding: 10px; background: var(--card); text-align: left; font-size: 15px; font-weight: 600; }
-.theme-btn[aria-pressed="true"] { border-color: var(--ink); }
-.theme-btn .sw { display: flex; gap: 3px; margin-bottom: 6px; }
-.theme-btn .sw i { width: 16px; height: 16px; border-radius: 4px; }
+/* Light / dark choice */
+.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card); border-radius: 14px; padding: 4px; margin-bottom: 10px; }
+.segmented button { border: 0; border-radius: 10px; padding: 10px 4px; background: transparent; font-size: 14px; font-weight: 600; }
+.segmented button[aria-pressed="true"] { background: var(--paper); box-shadow: var(--shadow); }
 .setting-label { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); margin: 6px 0; }
+.bar-right { display: flex; gap: 8px; }
+.bar > .icon-btn:first-child { margin-right: 52px; }
+.home-mode { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: calc(16px + env(safe-area-inset-right)); }
+#home { position: relative; }
+
+/* Hint card */
+.hint-box { background: var(--paper); border-radius: 16px; padding: 12px 14px; margin: 0 0 6px; box-shadow: var(--shadow); border: 2px solid var(--accent); }
+.hint-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hint-head b { font-size: 16px; }
+.hint-x { border: 0; background: none; font-size: 16px; color: var(--ink-soft); padding: 4px 8px; }
+.hint-box p { margin: 6px 0 10px; font-size: 15px; line-height: 1.4; }
+.hint-open .tools { display: none; }
+.primary.small { padding: 10px; font-size: 15px; }
+.cell.why::after { content: ""; position: absolute; inset: 3px; border: 2.5px dashed var(--ink); border-radius: 6px; opacity: .7; pointer-events: none; box-shadow: none; }
+.cell.target::after { content: ""; position: absolute; inset: 2px; border: 3px solid var(--accent); border-radius: 6px; pointer-events: none; box-shadow: 0 0 0 2px var(--paper); animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(.9); } }

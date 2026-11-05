@@ -27,16 +27,16 @@
     }
     return pts.join(' ');
   })();
+  // Light mode is the Garden, dark mode is the Night Sky. The rules never change.
   const THEMES = {
-    garden: { name: 'Garden', piece: 'bloom', pieces: 'blooms', svg: flower, color: ['#f5efe3', '#1d231b'], sw: ['#a9c98a', '#f0a07c', '#bba6e6', '#f5d565'] },
-    night: { name: 'Night Sky', piece: 'star', pieces: 'stars', color: ['#0f1526', '#0f1526'],
-      svg: svg(`<polygon class="pa" points="${starPath}"/>`), sw: ['#2f4f8f', '#6a3d8f', '#1f6f78', '#ffd34d'] },
-    bold: { name: 'Bold', piece: 'token', pieces: 'tokens', color: ['#ffffff', '#ffffff'],
-      svg: svg('<circle class="pa" r="38"/><circle class="pb nostroke" r="14"/>'), sw: ['#ff8a80', '#ffd54f', '#81d4fa', '#111111'] },
-    ink: { name: 'Paper & Ink', piece: 'gem', pieces: 'gems', color: ['#faf8f4', '#faf8f4'],
-      svg: svg('<polygon class="pa" points="0,-42 34,0 0,42 -34,0"/><polygon class="pb nostroke" points="0,-22 12,0 0,22 -12,0" opacity=".9"/>'), sw: ['#f6f1e6', '#e3ecf4', '#f4e6e6', '#1c1c1c'] },
+    garden: { piece: 'bloom', pieces: 'blooms', svg: flower, color: '#f5efe3',
+      plots: ['green', 'orange', 'purple', 'yellow', 'blue', 'pink', 'mint', 'gray', 'lime', 'tan'] },
+    night: { piece: 'star', pieces: 'stars', color: '#0f1526', svg: svg(`<polygon class="pa" points="${starPath}"/>`),
+      plots: ['blue', 'violet', 'teal', 'rose', 'green', 'amber', 'slate', 'cyan', 'red', 'olive'] },
   };
-  const theme = () => THEMES[settings.theme] || THEMES.garden;
+  const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  const isDark = () => settings.appearance === 'dark' || (settings.appearance === 'auto' && darkQuery && darkQuery.matches);
+  const theme = () => (isDark() ? THEMES.night : THEMES.garden);
   const tapHint = () => `Tap once for an ✕, twice for a ${theme().piece}.`;
 
   const $ = (id) => document.getElementById(id);
@@ -49,9 +49,10 @@
     del(key) { try { localStorage.removeItem('pt-' + key); } catch (e) { /* ignore */ } },
   };
 
-  const settings = Object.assign({ theme: 'garden', auto: false, conflicts: true, haptics: true, timer: false }, store.get('settings', {}));
-  // ?theme=night etc. previews a theme without saving it.
-  try { const q = new URLSearchParams(location.search).get('theme'); if (q && THEMES[q]) settings.theme = q; } catch (e) { /* ignore */ }
+  const settings = Object.assign({ appearance: 'auto', auto: false, conflicts: true, haptics: true, timer: false }, store.get('settings', {}));
+  delete settings.theme; // from an earlier version
+  // ?mode=dark or ?mode=light previews a look without saving it.
+  try { const q = new URLSearchParams(location.search).get('mode'); if (q === 'dark' || q === 'light') settings.appearance = q; } catch (e) { /* ignore */ }
   const stats = Object.assign({ solved: 0, best: {}, daily: {}, streak: 0, bestStreak: 0, lastDaily: null }, store.get('stats', {}));
 
   let game = null;          // current game state
@@ -79,7 +80,7 @@
         worker.postMessage({ id, size, seed });
       } else {
         setTimeout(() => {
-          try { resolve(window.PlotTwistEngine.generate(size, seed)); } catch (err) { reject(err); }
+          try { resolve(window.PlotTwistEngine.generateCasual(size, seed, window.PlotTwistHints)); } catch (err) { reject(err); }
         }, 30);
       }
     });
@@ -176,6 +177,7 @@
     $('gameTitle').textContent = game.title;
     buildBoard();
     render();
+    closeHint();
     $('status').textContent = game.solved ? 'Solved! 🌼' : tapHint();
     saveGame();
     if (!game.solved) startTimer();
@@ -200,8 +202,6 @@
         el.style.background = `var(--p${reg % 10})`;
         if (r > 0 && R[i - n] !== reg) el.classList.add('bt');
         if (c > 0 && R[i - 1] !== reg) el.classList.add('bl');
-        if (r < n - 1 && R[i + n] !== reg) el.classList.add('bb');
-        if (c < n - 1 && R[i + 1] !== reg) el.classList.add('br');
         board.appendChild(el);
         cells.push(el);
       }
@@ -322,6 +322,7 @@
   }
 
   function afterMove() {
+    if (hintShown) closeHint();
     render();
     checkWin();
     saveGame();
@@ -401,42 +402,142 @@
     setTimeout(() => el.classList.remove('hint'), 3700);
   }
 
+  /* ---------- Hints that explain the logic ---------- */
+  let hintShown = null; // { place, eliminate, cells }
+  const cellName = (i) => `row ${Math.floor(i / game.size) + 1}, column ${(i % game.size) + 1}`;
+  function groupName(g, cap) {
+    const t = g.type === 'plot' ? `the ${theme().plots[g.idx % 10]} plot` : g.type === 'row' ? `row ${g.idx + 1}` : `column ${g.idx + 1}`;
+    return cap ? t[0].toUpperCase() + t.slice(1) : t;
+  }
+  const lineName = (type, idx) => groupName({ type, idx });
+  function listNames(arr) { return arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]; }
+
+  function clearHintMarks() {
+    cells.forEach((el) => el.classList.remove('why', 'target', 'hint'));
+  }
+  function closeHint() {
+    hintShown = null;
+    clearHintMarks();
+    $('hintBox').hidden = true;
+    $('status').hidden = false;
+    $('game').classList.remove('hint-open');
+  }
+  function showHint(title, text, why, targets, action) {
+    clearHintMarks();
+    why.forEach((i) => cells[i].classList.add('why'));
+    targets.forEach((i) => { cells[i].classList.remove('why'); cells[i].classList.add('target'); });
+    hintShown = action || {};
+    $('hintTitle').textContent = title;
+    $('hintText').textContent = text;
+    const doBtn = $('hintDo');
+    doBtn.hidden = !action;
+    if (action) doBtn.textContent = action.label;
+    $('status').hidden = true;
+    $('hintBox').hidden = false;
+    $('game').classList.add('hint-open');
+  }
+
   function hint() {
     if (game.solved) return;
-    const n = game.size, sol = new Set(game.solution.map((c, r) => r * n + c));
-    const M = game.marks;
+    const n = game.size, M = game.marks, P = theme().piece, PS = theme().pieces;
+    const sol = new Set(game.solution.map((c, r) => r * n + c));
     game.hints++;
-    // 1) A bloom in the wrong place.
+    saveGame();
+
+    // Mistakes first, explained with the rule they break when possible.
+    const blooms = [];
+    M.forEach((v, i) => { if (v === BLOOM) blooms.push(i); });
+    for (let x = 0; x < blooms.length; x++) {
+      for (let y = x + 1; y < blooms.length; y++) {
+        const a = blooms[x], b = blooms[y];
+        const ra = Math.floor(a / n), rb = Math.floor(b / n), ca = a % n, cb = b % n;
+        let why = null;
+        if (ra === rb) why = `both in row ${ra + 1}. Each row gets exactly one`;
+        else if (ca === cb) why = `both in column ${ca + 1}. Each column gets exactly one`;
+        else if (game.regions[a] === game.regions[b]) why = `both in ${groupName({ type: 'plot', idx: game.regions[a] })}. Each plot gets exactly one`;
+        else if (Math.abs(ra - rb) <= 1 && Math.abs(ca - cb) <= 1) why = 'touching. They need a square of space all around, even at the corners';
+        if (why) return showHint('Two ' + PS + ' clash', `The highlighted ${PS} are ${why}. One of them has to go.`, [], [a, b], null);
+      }
+    }
     const wrong = M.findIndex((v, i) => v === BLOOM && !sol.has(i));
     if (wrong >= 0) {
-      flash(wrong);
-      $('status').textContent = `That flashing ${theme().piece} is in the wrong spot.`;
-      return saveGame();
+      return showHint('Not quite', `The ${P} at ${cellName(wrong)} doesn't break a rule yet, but it isn't part of the answer, so it will block another ${P} later. Remove it and ask again.`,
+        [], [wrong], { label: 'Remove it', run: () => applyChanges([{ i: wrong, from: BLOOM, to: EMPTY }]) });
     }
-    // 2) A pebble sitting on a bloom spot.
     const covered = M.findIndex((v, i) => v === PEBBLE && sol.has(i));
     if (covered >= 0) {
-      flash(covered);
-      $('status').textContent = `A ${theme().piece} belongs under that flashing ✕.`;
-      return saveGame();
+      return showHint('One ✕ is hiding a ' + P, `The ✕ at ${cellName(covered)} is covering a square that needs a ${P}. Clear it and ask again.`,
+        [], [covered], { label: 'Clear it', run: () => applyChanges([{ i: covered, from: PEBBLE, to: EMPTY }]) });
     }
-    // 3) Plant the bloom for the plot with the fewest open squares.
-    let best = -1, bestOpen = Infinity;
-    for (const i of sol) {
-      if (M[i] === BLOOM) continue;
-      const open = game.regions.filter((reg, j) => reg === game.regions[i] && M[j] === EMPTY).length;
-      if (open < bestOpen) { bestOpen = open; best = i; }
+
+    // Logic: what we know is your pieces and your ✕ marks (all correct by now).
+    const H = window.PlotTwistHints;
+    const B = H.makeBoard(n, game.regions);
+    const cand = M.map((v) => (v === PEBBLE ? 0 : 1));
+    const placed = M.map((v) => (v === BLOOM ? 1 : 0));
+    const step = H.nextStep(B, cand, placed);
+    const markAll = (cellsToMark) => ({
+      label: 'Mark them ✕',
+      run: () => applyChanges(cellsToMark.filter((j) => M[j] === EMPTY).map((j) => ({ i: j, from: EMPTY, to: PEBBLE }))),
+    });
+    const placeIt = (i) => ({
+      label: 'Place it',
+      run: () => {
+        const ch = [{ i, from: M[i], to: BLOOM }];
+        if (settings.auto) ch.push(...autoPebbles(i));
+        applyChanges(ch);
+      },
+    });
+
+    if (!step) {
+      // Rare: the next step needs trial and error. Give a piece for free.
+      let best = -1, bestOpen = Infinity;
+      for (const i of sol) {
+        if (M[i] === BLOOM) continue;
+        const open = game.regions.filter((reg, j) => reg === game.regions[i] && M[j] === EMPTY).length;
+        if (open < bestOpen) { bestOpen = open; best = i; }
+      }
+      return showHint('A tricky spot', `There's no simple rule that settles the next move here, so here's a free ${P} to keep you going.`, [], [best], placeIt(best));
     }
-    if (best >= 0) {
-      const changes = [{ i: best, from: M[best], to: BLOOM }];
-      if (settings.auto) changes.push(...autoPebbles(best));
-      applyChanges(changes);
-      render();
-      flash(best);
-      $('status').textContent = `Placed one ${theme().piece} for you.`;
-      checkWin();
-      saveGame();
+
+    const d = step.data;
+    switch (step.rule) {
+      case 'zone':
+        return showHint('Make room around your ' + P,
+          `Rule: ${PS} can't share a row, column or plot, and can't touch, not even at the corners. Your ${P} at ${cellName(d.cell)} rules out every highlighted square.`,
+          [d.cell], step.eliminate, markAll(step.eliminate));
+      case 'single':
+        return showHint('Only one square left',
+          `Rule: every row, column and plot needs exactly one ${P}. ${groupName(d.group, true)} has just one open square left, so its ${P} must go there.`,
+          d.group.cells.filter((i) => i !== step.place), [step.place], placeIt(step.place));
+      case 'claim': {
+        const where = lineName(d.lineType, d.line);
+        const owner = groupName(d.group);
+        return showHint(`${groupName(d.group, true)} claims ${where}`,
+          `Every open square in ${owner} is inside ${where}. So ${owner}'s ${P} will land somewhere in ${where}, and since ${where} can only hold one ${P}, the other squares in ${where} can't have one.`,
+          step.reason, step.eliminate, markAll(step.eliminate));
+      }
+      case 'block':
+        return showHint('This square would block ' + groupName(d.group),
+          `Imagine a ${P} at ${cellName(d.cell)}. It would rule out every open square left in ${groupName(d.group)} (they share its row, column or plot, or touch it), leaving ${groupName(d.group)} with nowhere to go. So this square gets an ✕.`,
+          step.reason, step.eliminate, markAll(step.eliminate));
+      case 'squeeze': {
+        const k = d.groups.length;
+        const names = listNames(d.groups.map((g) => groupName(g)));
+        const lines = listNames(d.lines.map((L) => lineName(d.lineType, L)));
+        const kind = d.lineType === 'plot' ? 'plots' : d.lineType + 's';
+        return showHint(`${k} fit in ${k}`,
+          `${names[0].toUpperCase() + names.slice(1)} only have open squares inside ${lines}. Those ${k} ${kind} must hold all ${k} of their ${PS}, which uses them up. So no other square in ${lines} can have a ${P}.`,
+          step.reason, step.eliminate, markAll(step.eliminate));
+      }
     }
+  }
+
+  function runHintAction() {
+    if (!hintShown || !hintShown.run) return closeHint();
+    hintShown.run();
+    closeHint();
+    afterMove();
   }
 
   function checkWin() {
@@ -522,31 +623,29 @@
   }
 
   function applyTheme() {
-    const t = theme();
-    document.documentElement.dataset.theme = settings.theme;
-    document.querySelectorAll('meta[name="theme-color"]').forEach((m, k) => m.setAttribute('content', t.color[k] || t.color[0]));
+    const dark = isDark(), t = theme();
+    document.documentElement.dataset.theme = dark ? 'night' : 'garden';
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', t.color));
     document.querySelectorAll('[data-word]').forEach((el) => { el.textContent = t[el.dataset.word]; });
-    const wrap = $('themes');
-    wrap.innerHTML = '';
-    for (const [key, th] of Object.entries(THEMES)) {
-      const b = document.createElement('button');
-      b.className = 'theme-btn';
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(key === settings.theme));
-      b.innerHTML = `<span class="sw">${th.sw.map((c) => `<i style="background:${c}"></i>`).join('')}</span>${th.name}`;
-      b.onclick = () => {
-        settings.theme = key;
-        store.set('settings', settings);
-        applyTheme();
-        if (game && !$('game').hidden) {
-          cells.forEach((el) => { el.dataset.v = 'x'; });
-          render();
-          if (!game.solved) $('status').textContent = tapHint();
-        }
-      };
-      wrap.appendChild(b);
+    document.querySelectorAll('.mode-btn').forEach((b) => {
+      b.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+      b.innerHTML = dark ? SUN : MOON;
+    });
+    document.querySelectorAll('#appearance button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === settings.appearance)));
+    if (game && !$('game').hidden) {
+      cells.forEach((el) => { el.dataset.v = 'x'; });
+      render();
+      if (!game.solved && !hintShown) $('status').textContent = tapHint();
     }
   }
+  const SUN = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const MOON = '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+  function setAppearance(mode) {
+    settings.appearance = mode;
+    store.set('settings', settings);
+    applyTheme();
+  }
+  if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', () => { if (settings.appearance === 'auto') applyTheme(); });
 
   function bindSettings() {
     const map = { optAuto: 'auto', optConflicts: 'conflicts', optHaptics: 'haptics', optTimer: 'timer' };
@@ -577,6 +676,10 @@
   $('backBtn').onclick = showHome;
   $('undoBtn').onclick = undo;
   $('hintBtn').onclick = hint;
+  $('hintDo').onclick = runHintAction;
+  $('hintClose').onclick = closeHint;
+  document.querySelectorAll('.mode-btn').forEach((b) => { b.onclick = () => setAppearance(isDark() ? 'light' : 'dark'); });
+  document.querySelectorAll('#appearance button').forEach((b) => { b.onclick = () => setAppearance(b.dataset.mode); });
   $('clearBtn').onclick = clearBoard;
   $('newBtn').onclick = () => startGame({ mode: 'free', size: game && game.mode === 'free' ? game.size : DAILY_SIZE });
   $('winHome').onclick = () => { $('winDlg').close(); showHome(); };

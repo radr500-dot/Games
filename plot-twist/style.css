@@ -1,27 +1,27 @@
 :root {
-  --bg: #f5efe3;
-  --paper: #fffaf0;
-  --ink: #2f3d2b;
-  --ink-soft: #6b7563;
-  --line: #2f3d2b;
-  --accent: #d98f2b;
-  --clash: #c0392b;
-  --card: #ece4d3;
-  --shadow: 0 1px 0 rgba(47, 61, 43, .08), 0 6px 18px rgba(47, 61, 43, .08);
-  /* Garden plot colours: earthy and soft. */
-  --p0: #b7c9a0; --p1: #e6a98c; --p2: #c7b8dc; --p3: #edd58c; --p4: #a8c8d4;
-  --p5: #e8b9c1; --p6: #9ed3c0; --p7: #d3cdc2; --p8: #a7afd3; --p9: #d6b48c;
   --font: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  color-scheme: light dark;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .06), 0 6px 18px rgba(0, 0, 0, .08);
+  --clash: #d0342c;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1d231b; --paper: #262d23; --ink: #ece6d6; --ink-soft: #a5ad9b; --line: #10140f;
-    --card: #2b3328; --clash: #ff6b5b;
-    --shadow: 0 6px 18px rgba(0, 0, 0, .3);
-    --p0: #6f8758; --p1: #a8674c; --p2: #7e6d99; --p3: #a98f3f; --p4: #5b8494;
-    --p5: #a46c77; --p6: #3f8a76; --p7: #6e6a62; --p8: #636c9a; --p9: #8a6e52;
-  }
+
+/* Light mode: Garden */
+:root, :root[data-theme="garden"] {
+  --bg: #f5efe3; --paper: #fffaf0; --ink: #2f3d2b; --ink-soft: #6b7563; --line: #2f3d2b;
+  --card: #ece4d3; --accent: #e08a1e;
+  --mark: #2f3d2b; --piece-a: #ffffff; --piece-b: #e08a1e; --piece-line: #1f2a1c;
+  --p0: #a9c98a; --p1: #f0a07c; --p2: #bba6e6; --p3: #f5d565; --p4: #8cc6e0;
+  --p5: #f4a9bb; --p6: #7fd1b5; --p7: #d9d2c5; --p8: #cde27a; --p9: #dcae7a;
+  color-scheme: light;
+}
+/* Dark mode: Night Sky */
+:root[data-theme="night"] {
+  --bg: #0f1526; --paper: #1a2238; --ink: #eef1fb; --ink-soft: #9aa3c0; --line: #05070d;
+  --card: #1f2942; --accent: #ffc93c; --clash: #ff5f6d;
+  --mark: rgba(255, 255, 255, .85); --piece-a: #ffd34d; --piece-b: #fff4c2; --piece-line: #7a5600;
+  --shadow: 0 6px 18px rgba(0, 0, 0, .4);
+  --p0: #3a62b0; --p1: #8a4fc0; --p2: #1f8f8a; --p3: #c0507a; --p4: #4f8a3c;
+  --p5: #c08a2a; --p6: #5a6378; --p7: #2aa3c7; --p8: #b84a3a; --p9: #8a9a2a;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -99,28 +99,32 @@ h1 { font-size: 34px; margin: 12px 0 4px; letter-spacing: -.5px; }
   position: relative; display: grid; place-items: center;
   background: var(--paper);
 }
-/* Thick plot borders are drawn with inset shadows on the edges that face a different plot. */
-.cell.bt { box-shadow: inset 0 2px 0 var(--line); }
-.cell.bl { box-shadow: inset 2px 0 0 var(--line); }
-.cell.bt.bl { box-shadow: inset 0 2px 0 var(--line), inset 2px 0 0 var(--line); }
-.cell.bb::after, .cell.br::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
-.cell.bb::after { box-shadow: inset 0 -2px 0 var(--line); }
-.cell.br::after { box-shadow: inset -2px 0 0 var(--line); }
-.cell.bb.br::after { box-shadow: inset 0 -2px 0 var(--line), inset -2px 0 0 var(--line); }
+/* Thick plot borders: each square draws its top/left edge when the square above/left is in another plot. */
+.cell.bt { box-shadow: inset 0 3px 0 var(--line); }
+.cell.bl { box-shadow: inset 3px 0 0 var(--line); }
+.cell.bt.bl { box-shadow: inset 0 3px 0 var(--line), inset 3px 0 0 var(--line); }
 
-.cell .pebble { width: 22%; height: 22%; border-radius: 50%; background: var(--ink); opacity: .45; }
-.cell .bloom { position: absolute; left: 8%; top: 8%; width: 84%; height: 84%; animation: pop .22s ease-out; }
-.cell .bloom .petal { fill: var(--paper); stroke: var(--ink); stroke-width: 6; }
-.cell .bloom .heart { fill: var(--accent); stroke: var(--ink); stroke-width: 6; }
+/* "Not here" mark: a crisp little cross. */
+.cell .mark { position: relative; width: 32%; height: 32%; }
+.cell .mark::before, .cell .mark::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 130%; height: 2.5px; border-radius: 2px;
+  background: var(--mark); transform: translate(-50%, -50%) rotate(45deg);
+}
+.cell .mark::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.cell .piece { position: absolute; left: 8%; top: 8%; width: 84%; height: 84%; animation: pop .22s ease-out; overflow: visible; }
+.piece .pa { fill: var(--piece-a); stroke: var(--piece-line); stroke-width: 6; stroke-linejoin: round; }
+.piece .pb { fill: var(--piece-b); stroke: var(--piece-line); stroke-width: 6; }
+.piece .pb.nostroke { stroke: none; }
+:root[data-theme="night"] .piece { filter: drop-shadow(0 0 4px rgba(255, 211, 77, .7)); }
 .cell.clash::before {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(192, 57, 43, .28) 6px 9px);
 }
-.cell.clash .bloom .heart { fill: var(--clash); }
+.cell.clash .piece .pa, .cell.clash .piece .pb { fill: var(--clash); }
 .cell.hint { animation: glow 1.2s ease-in-out 3; }
 @keyframes pop { from { transform: scale(.4); } 60% { transform: scale(1.1); } to { transform: scale(1); } }
 @keyframes glow { 50% { filter: brightness(1.35) saturate(1.3); transform: scale(.92); } }
-.board.solved .bloom { animation: sway 1.6s ease-in-out infinite; }
+.board.solved .piece { animation: sway 1.6s ease-in-out infinite; }
 @keyframes sway { 50% { transform: rotate(18deg) scale(1.05); } }
 
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-soft); font-size: 16px; }
@@ -153,8 +157,6 @@ dialog form { margin-top: 12px; }
 .win-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
 .win-flower { width: 90px; height: 90px; margin: 0 auto 6px; animation: sway 1.6s ease-in-out infinite; }
 .win-flower svg { width: 100%; height: 100%; }
-.win-flower .petal { fill: var(--p5); stroke: var(--ink); stroke-width: 5; }
-.win-flower .heart { fill: var(--accent); stroke: var(--ink); stroke-width: 5; }
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 .stat { background: var(--card); border-radius: 14px; padding: 12px; text-align: center; }
 .stat b { display: block; font-size: 24px; }
@@ -176,3 +178,25 @@ dialog form { margin-top: 12px; }
   .screen { padding: 28px 24px; }
   .board { width: min(100%, 560px, calc(100dvh - 280px)); }
 }
+
+/* Light / dark choice */
+.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card); border-radius: 14px; padding: 4px; margin-bottom: 10px; }
+.segmented button { border: 0; border-radius: 10px; padding: 10px 4px; background: transparent; font-size: 14px; font-weight: 600; }
+.segmented button[aria-pressed="true"] { background: var(--paper); box-shadow: var(--shadow); }
+.setting-label { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-soft); margin: 6px 0; }
+.bar-right { display: flex; gap: 8px; }
+.bar > .icon-btn:first-child { margin-right: 52px; }
+.home-mode { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: calc(16px + env(safe-area-inset-right)); }
+#home { position: relative; }
+
+/* Hint card */
+.hint-box { background: var(--paper); border-radius: 16px; padding: 12px 14px; margin: 0 0 6px; box-shadow: var(--shadow); border: 2px solid var(--accent); }
+.hint-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hint-head b { font-size: 16px; }
+.hint-x { border: 0; background: none; font-size: 16px; color: var(--ink-soft); padding: 4px 8px; }
+.hint-box p { margin: 6px 0 10px; font-size: 15px; line-height: 1.4; }
+.hint-open .tools { display: none; }
+.primary.small { padding: 10px; font-size: 15px; }
+.cell.why::after { content: ""; position: absolute; inset: 3px; border: 2.5px dashed var(--ink); border-radius: 6px; opacity: .7; pointer-events: none; box-shadow: none; }
+.cell.target::after { content: ""; position: absolute; inset: 2px; border: 3px solid var(--accent); border-radius: 6px; pointer-events: none; box-shadow: 0 0 0 2px var(--paper); animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(.9); } }

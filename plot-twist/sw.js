@@ -1,7 +1,7 @@
 // Offline support: keep a copy of the app so it opens with no signal.
-const CACHE = 'plot-twist-v1';
+const CACHE = 'plot-twist-v3';
 const FILES = [
-  './', './index.html', './style.css', './app.js', './generator.js', './worker.js',
+  './', './index.html', './style.css', './app.js', './generator.js', './hints.js', './worker.js',
   './manifest.webmanifest', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png'
 ];
 self.addEventListener('install', (e) => {

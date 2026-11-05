@@ -164,7 +164,18 @@
     throw new Error('Could not generate a puzzle');
   }
 
-  const api = { generate, countSolutions, makeRng };
+  // A puzzle that can always be finished by plain logic (no guessing).
+  function generateCasual(n, seed, hints) {
+    let s = seed == null ? (Math.random() * 2 ** 32) >>> 0 : seed;
+    for (let k = 0; k < 50; k++) {
+      const p = generate(n, s);
+      if (!hints || hints.solvableByLogic(n, p.regions)) return p;
+      s = (s + 0x9E3779B9) >>> 0;
+    }
+    return generate(n, s);
+  }
+
+  const api = { generate, generateCasual, countSolutions, makeRng };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PlotTwistEngine = api;
 })(typeof self !== 'undefined' ? self : this);

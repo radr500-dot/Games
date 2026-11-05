@@ -10,20 +10,26 @@ The board is a garden split into plots, and the fun of each puzzle is the moment
 
 ## How to play
 
-- **Tap** a square once for a pebble (your note for "no bloom here"), again for a bloom, and again to clear it.
-- **Drag** across squares to lay down lots of pebbles at once.
-- Blooms that break a rule get red stripes.
-- **Hint** points out a wrong bloom or a covered spot first, and otherwise plants one correct bloom for you.
+- **Tap** a square once for an ✕ (your note for "not here"), again for a bloom, and again to clear it.
+- **Drag** across squares to mark lots of them with ✕ at once.
+- Blooms that break a rule get striped.
+- **Hint** teaches the next step: it names the rule, highlights the squares that prove it, and explains why. Tap the button on the hint to apply it, or close it and do it yourself. It points out mistakes first.
+
+Every puzzle can be finished with logic alone, no guessing needed.
+
+### Light and dark
+
+Light mode is the **Garden** (flowers). Dark mode is the **Night Sky** (gold stars). Switch with the sun/moon button, or pick "Match phone" in Settings.
 - **Undo**, **Clear** and **New** do what they say.
 
-On a computer you can also right-click to plant or remove a bloom, and use the keyboard: arrow keys move, Space cycles a square, B plants a bloom, X drops a pebble, Ctrl/⌘+Z undoes, H gives a hint.
+On a computer you can also right-click to plant or remove a bloom, and use the keyboard: arrow keys move, Space cycles a square, B places a piece, X toggles an ✕, Ctrl/⌘+Z undoes, H gives a hint.
 
 ### Modes
 
 - **Today's garden**: one 8 × 8 puzzle per day (the same all day), with a streak counter.
 - **Free play**: endless puzzles in five sizes, from Sprout (6 × 6) to Wilds (10 × 10). Best times are kept for puzzles solved without hints.
 
-Your game in progress, best times and settings are saved on the device, so you can close the app and pick up where you left off. Settings include auto-pebbling around new blooms, red clash marks, vibration and the timer.
+Your game in progress, best times and settings are saved on the device, so you can close the app and pick up where you left off. Settings include light/dark, auto-✕ around new pieces, clash highlights, vibration and the timer (off by default, to keep things relaxed).
 
 ## Install on iPhone
 
@@ -51,4 +57,4 @@ It's plain HTML, CSS and JavaScript with no build step. From this folder run `py
 
 ## How the puzzles are made
 
-`generator.js` places one bloom per row and column with no two touching, grows a plot around each bloom, then nudges plot borders one square at a time until a solver confirms the puzzle has exactly one solution. The generator runs in a background worker (`worker.js`) so the screen never freezes, even on the 10 × 10 size.
+`generator.js` places one bloom per row and column with no two touching, grows a plot around each bloom, then nudges plot borders one square at a time until a solver confirms the puzzle has exactly one solution. `hints.js` then checks the puzzle can be solved step by step with the same rules the hints explain, and the generator keeps only puzzles that pass. The generator runs in a background worker (`worker.js`) so the screen never freezes, even on the 10 × 10 size.

@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Plot Twist</title>
   <meta name="description" content="A calm logic garden: one bloom per row, column and plot.">
-  <meta name="theme-color" content="#f5efe3" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d231b" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5efe3">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -19,10 +18,11 @@
 <body>
   <!-- Home screen -->
   <main id="home" class="screen">
+    <button class="icon-btn mode-btn home-mode" aria-label="Switch light or dark"></button>
     <header class="home-head">
       <img src="icons/icon-192.png" alt="" class="logo">
       <h1>Plot Twist</h1>
-      <p class="tagline">One bloom per row, column and plot.</p>
+      <p class="tagline">One <span data-word="piece">bloom</span> per row, column and plot.</p>
     </header>
 
     <button id="dailyBtn" class="card daily">
@@ -55,9 +55,12 @@
         <div id="gameTitle" class="bar-title">Garden</div>
         <div id="timer" class="timer">0:00</div>
       </div>
+      <div class="bar-right">
+      <button class="icon-btn mode-btn" aria-label="Switch light or dark"></button>
       <button id="helpBtn" class="icon-btn" aria-label="How to play">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.4"/><circle cx="12" cy="17" r=".6" class="fill"/></svg>
       </button>
+      </div>
     </header>
 
     <div id="boardWrap" class="board-wrap">
@@ -65,7 +68,12 @@
       <div id="loading" class="loading" hidden>Planting a new garden…</div>
     </div>
 
-    <p id="status" class="status" aria-live="polite">Tap once for a pebble, twice for a bloom.</p>
+    <p id="status" class="status" aria-live="polite"></p>
+    <section id="hintBox" class="hint-box" hidden aria-live="polite">
+      <div class="hint-head"><b id="hintTitle"></b><button id="hintClose" class="hint-x" aria-label="Close hint">✕</button></div>
+      <p id="hintText"></p>
+      <button id="hintDo" class="primary small"></button>
+    </section>
 
     <nav class="tools">
       <button id="undoBtn" class="tool"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Undo</span></button>
@@ -79,11 +87,12 @@
   <dialog id="howDlg" class="sheet">
     <h2>How to play</h2>
     <ul class="rules">
-      <li>Plant exactly <b>one bloom</b> in every <b>row</b>, every <b>column</b> and every colored <b>plot</b>.</li>
-      <li>Blooms need space: two blooms can never <b>touch</b>, not even corner to corner.</li>
-      <li>Tap a square once to drop a <b>pebble</b> (your note for "no bloom here"). Tap again for a <b>bloom</b>, and again to clear it.</li>
-      <li>Drag your finger (or mouse) across squares to lay down lots of pebbles at once.</li>
-      <li class="desktop-only">On a computer: right-click plants or removes a bloom. Arrow keys move, Space cycles a square, B plants a bloom, X drops a pebble, Ctrl/⌘+Z undoes, H gives a hint.</li>
+      <li>Place exactly <b>one <span data-word="piece">bloom</span></b> in every <b>row</b>, every <b>column</b> and every colored <b>plot</b>.</li>
+      <li>They need space: two <span data-word="pieces">blooms</span> can never <b>touch</b>, not even corner to corner.</li>
+      <li>Stuck? <b>Hint</b> explains the next step and why it works.</li>
+      <li>Tap a square once to mark it with an <b>✕</b> (your note for "not here"). Tap again to place a <b><span data-word="piece">bloom</span></b>, and again to clear it.</li>
+      <li>Drag your finger (or mouse) across squares to mark lots of squares with ✕ at once.</li>
+      <li class="desktop-only">On a computer: right-click places or removes a piece. Arrow keys move, Space cycles a square, B places a piece, X toggles an ✕, Ctrl/⌘+Z undoes, H gives a hint.</li>
       <li>Every garden has exactly one answer.</li>
     </ul>
     <form method="dialog"><button class="primary">Got it</button></form>
@@ -97,10 +106,16 @@
 
   <dialog id="settingsDlg" class="sheet">
     <h2>Settings</h2>
-    <label class="toggle"><input type="checkbox" id="optAuto"><span>Auto-pebble around new blooms</span></label>
-    <label class="toggle"><input type="checkbox" id="optConflicts" checked><span>Show clashes in red</span></label>
+    <div class="setting-label">Look</div>
+    <div class="segmented" id="appearance">
+      <button type="button" data-mode="light">☀️ Garden</button>
+      <button type="button" data-mode="dark">🌙 Night Sky</button>
+      <button type="button" data-mode="auto">Match phone</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="optAuto"><span>Auto-✕ around each new <span data-word="piece">bloom</span></span></label>
+    <label class="toggle"><input type="checkbox" id="optConflicts" checked><span>Highlight clashes</span></label>
     <label class="toggle"><input type="checkbox" id="optHaptics" checked><span>Vibrate on taps (where supported)</span></label>
-    <label class="toggle"><input type="checkbox" id="optTimer" checked><span>Show timer</span></label>
+    <label class="toggle"><input type="checkbox" id="optTimer"><span>Show timer</span></label>
     <form method="dialog"><button class="primary">Done</button></form>
   </dialog>
 
@@ -115,6 +130,7 @@
   </dialog>
 
   <script src="generator.js"></script>
+  <script src="hints.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

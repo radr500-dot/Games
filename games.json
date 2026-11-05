@@ -17,6 +17,12 @@
       "name": "Beach Day",
       "tagline": "Pour the sand into matching bottles.",
       "icon": "beach-day/icons/icon-192.png"
+    },
+    {
+      "folder": "starlit",
+      "name": "Starlit",
+      "tagline": "Fill the squares, find the picture.",
+      "icon": "starlit/icons/icon-192.png"
     }
   ]
 }

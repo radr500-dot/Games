@@ -21,6 +21,7 @@
   let hintMove = null;  // { a, b } while a hint is showing
   let statusTimer = 0;
   let busy = false;
+  let animToken = 0;    // bumps when a pour animation is cut short by the next tap
   let plan = null;      // the rest of the solution the last hint came from     // true while a pour is animating
 
   const highest = () => progress.done.reduce((m, l) => Math.max(m, l), 0);
@@ -159,7 +160,8 @@
     return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
   }
 
-  async function animatePour(a, b, count, color, destBefore) {
+  async function animatePour(a, b, count, color, destBefore, token) {
+    const stale = () => token !== animToken;
     const board = $('board');
     const src = board.children[a], dst = board.children[b];
     if (!src || !dst || reduceMotion) return;
@@ -172,10 +174,11 @@
     const fly = src.cloneNode(true);
     fly.classList.remove('lifted', 'why', 'target');
     fly.classList.add('flying');
+    fly.removeAttribute('data-i');
     fly.querySelectorAll('.tag').forEach((t) => t.remove());
     Object.assign(fly.style, { left: (sr.left - br.left) + 'px', top: (sr.top - br.top) + 'px', width: sr.width + 'px', height: sr.height + 'px' });
     board.appendChild(fly);
-    src.style.visibility = 'hidden';
+    src.style.opacity = '0'; // stays tappable, so a quick next tap still lands on it
 
     // The mouth (top centre) ends up just above and slightly to the near side of the target's mouth.
     const mouthX = dr.left - br.left + dr.width / 2 - side * dr.width * 0.12;
@@ -183,7 +186,7 @@
     const dx = mouthX - (sr.left - br.left + sr.width / 2);
     const dy = mouthY - (sr.top - br.top);
     const tilt = side * 112;
-    const moveMs = 380, flowMs = 260 + 200 * count, fallMs = 240, backMs = 340;
+    const moveMs = 170, flowMs = 110 + 80 * count, fallMs = 110, backMs = 160;
 
     // As the bottle tips past level, its sand slides down toward the mouth. A spacer at the
     // bottom of the copy grows to push the layers there, and keeps growing as sand pours out.
@@ -198,7 +201,8 @@
     spacer.style.height = empty + 'px';
     fly.style.transition = `transform ${moveMs}ms cubic-bezier(.45,.05,.3,1)`;
     fly.style.transform = `translate(${dx}px, ${dy}px) rotate(${tilt}deg)`;
-    await wait(moveMs - 40);
+    await wait(moveMs - 30);
+    if (stale()) return;
 
     // Sand leaves the tipped bottle...
     const flyLayers = [...fly.querySelectorAll('.sand')].slice(-count);
@@ -217,7 +221,8 @@
 
     // Falling grains, drawn on a canvas over the board.
     const surface0 = dr.bottom - br.top - 5 - destBefore * unit;
-    await grains({ x: mouthX, y: mouthY + 2, surface0, rise: count * unit, flowMs, fallMs, color: cssColor(color), side });
+    await grains({ x: mouthX, y: mouthY + 2, surface0, rise: count * unit, flowMs, fallMs, color: cssColor(color), side, stale });
+    if (stale()) return;
 
     fly.style.transition = `transform ${backMs}ms cubic-bezier(.45,.05,.3,1)`;
     fly.style.transform = 'none';
@@ -245,14 +250,14 @@
         const flowing = el < o.flowMs;
         // The stream starts thin, swells, and thins out again at the end.
         const k = flowing ? Math.sin(Math.PI * Math.min(1, el / o.flowMs)) : 0;
-        const spawn = flowing ? Math.round((5 + 9 * k) * dt) : 0;
-        const wob = Math.sin(el / 90) * 1.2;
+        const spawn = flowing ? Math.round((8 + 14 * k) * dt) : 0;
+        const wob = Math.sin(el / 50) * 1.2;
         for (let i = 0; i < spawn; i++) {
           parts.push({
             x: o.x + wob + (Math.random() - .5) * (1.5 + 2.5 * k),
             y: o.y + Math.random() * 3,
             vx: o.side * (0.25 + Math.random() * 0.35) * (1 - el / o.flowMs) + (Math.random() - .5) * 0.15,
-            vy: 0.6 + Math.random() * 0.8,
+            vy: 1.6 + Math.random() * 1.2,
             s: 1.1 + Math.random() * 1.5,
             c: tones[(Math.random() * tones.length) | 0],
           });
@@ -263,7 +268,7 @@
         ctx.clearRect(0, 0, W, H);
         for (let i = parts.length - 1; i >= 0; i--) {
           const p = parts[i];
-          p.vy += 0.38 * dt; p.vx *= 0.97;
+          p.vy += 0.85 * dt; p.vx *= 0.97;
           p.x += p.vx * dt; p.y += p.vy * dt;
           if (p.y >= surface - Math.random() * 3) {
             parts.splice(i, 1);
@@ -279,7 +284,8 @@
           ctx.beginPath(); ctx.ellipse(o.x, surface - 1, 4 + 4 * k, 2, 0, 0, Math.PI * 2); ctx.fill();
           ctx.globalAlpha = 1;
         }
-        if (flowing || parts.length) requestAnimationFrame(frame);
+        if (o.stale()) { cv.remove(); resolve(); }
+        else if (flowing || parts.length) requestAnimationFrame(frame);
         else { cv.remove(); resolve(); }
       }
       requestAnimationFrame(frame);
@@ -295,7 +301,7 @@
   }
 
   function tap(i) {
-    if (busy) return;
+    if (busy) finishNow();
     if (!game || game.won) return;
     const t = game.tubes[i];
     if (!t) return;
@@ -321,7 +327,7 @@
   }
 
   async function doPour(a, b) {
-    if (busy) return;
+    if (busy) finishNow();
     closeHint();
     pushHistory();
     const destBefore = game.tubes[b].length;
@@ -331,12 +337,24 @@
     saveGame();
     buzz(12);
     busy = true;
+    const token = ++animToken;
     say('');
-    try { await animatePour(a, b, r.count, r.color, destBefore); } catch (e) { /* drawing problems never block play */ }
+    try { await animatePour(a, b, r.count, r.color, destBefore, token); } catch (e) { /* drawing problems never block play */ }
+    if (token !== animToken) return; // a newer tap already took over
+    afterPour();
+  }
+  function afterPour() {
     busy = false;
     render();
     if (E.isWon(game.tubes)) { win(); return; }
     updateStatus();
+  }
+  // Jump straight to the end of a running pour so the next tap acts right away.
+  function finishNow() {
+    if (!busy) return;
+    animToken++;
+    document.querySelectorAll('.flying, .grain-canvas').forEach((el) => el.remove());
+    afterPour();
   }
 
   function updateStatus() {
@@ -358,7 +376,7 @@
   const key = () => game ? JSON.stringify(game.tubes) : '';
 
   function undo() {
-    if (busy) return;
+    if (busy) finishNow();
     if (!game || !game.history.length || game.won) return;
     const s = game.history.pop();
     game.tubes = s.tubes; game.extra = s.extra; game.pours = s.pours;
@@ -366,7 +384,7 @@
   }
 
   function addTube() {
-    if (busy) return;
+    if (busy) finishNow();
     if (!game || game.extra || game.won) return;
     pushHistory();
     game.tubes.push([]); game.extra = true; selected = -1;
@@ -376,7 +394,7 @@
   }
 
   function restart() {
-    if (busy) return;
+    if (busy) finishNow();
     if (!game || game.won) return;
     if (!game.history.length) return;
     pushHistory();
@@ -387,7 +405,7 @@
 
   /* ---------- Hints ---------- */
   function hint() {
-    if (busy) return;
+    if (busy) finishNow();
     if (!game || game.won) return;
     selected = -1;
     // Follow one solution plan while the player keeps to it, so hints never go in circles.
@@ -464,7 +482,7 @@
     say('All sorted!');
     $('winTitle').textContent = 'All sorted!';
     $('winText').textContent = `Level ${game.level} finished in ${game.pours} pours. Every bottle is one color.`;
-    setTimeout(() => $('winDlg').showModal(), 600);
+    setTimeout(() => $('winDlg').showModal(), 450);
   }
 
   /* ---------- Look ---------- */

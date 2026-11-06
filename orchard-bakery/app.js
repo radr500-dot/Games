@@ -123,21 +123,21 @@ function updateFlights(dt) {
 }
 
 // ---------- piles (stacks of items on trays, tables, baskets, the stall) ----------
-const SCALE = { apple: 0.75, pie: 0.72, bread: 0.72, wheat: 1, coin: 1, jam: 1, berry: 1, egg: 1, milk: 1, comb: 1, custard: 1, butter: 1, tart: 0.9, honey: 1 };
+const SCALE = { apple: 0.85, pie: 0.8, bread: 0.8, wheat: 1.1, coin: 1, jam: 1.12, berry: 1.25, egg: 1.2, milk: 1.1, comb: 1.05, custard: 1.25, butter: 1.2, tart: 1.0, honey: 1.12 };
 const LAYER = { // per-layer offsets, layer height, base lift
-  apple: [[[-0.085, -0.04], [0.085, -0.04], [0, 0.085]], 0.19, 0.105],
-  pie: [[[0, 0]], 0.1, 0],
-  bread: [[[0, -0.075], [0, 0.075]], 0.155, 0],
-  wheat: [[[0, -0.06], [0, 0.06]], 0.085, 0.045],
-  jam: [[[-0.1, 0], [0.1, 0]], 0.215, 0],
-  berry: [[[-0.07, -0.05], [0.07, -0.05], [0, 0.07], [0.1, 0.06], [-0.1, 0.06]], 0.1, 0.07],
-  egg: [[[-0.07, -0.05], [0.07, -0.05], [0, 0.07]], 0.12, 0],
-  milk: [[[-0.07, 0], [0.07, 0]], 0.3, 0],
-  comb: [[[0, 0]], 0.04, 0],
-  custard: [[[-0.1, -0.05], [0.1, -0.05], [0, 0.1]], 0.05, 0],
-  butter: [[[-0.085, 0], [0.085, 0]], 0.076, 0],
+  apple: [[[-0.096, -0.045], [0.096, -0.045], [0, 0.096]], 0.215, 0.12],
+  pie: [[[0, 0]], 0.112, 0],
+  bread: [[[0, -0.085], [0, 0.085]], 0.175, 0],
+  wheat: [[[0, -0.066], [0, 0.066]], 0.094, 0.05],
+  jam: [[[-0.112, 0], [0.112, 0]], 0.24, 0],
+  berry: [[[-0.088, -0.062], [0.088, -0.062], [0, 0.088], [0.125, 0.075], [-0.125, 0.075]], 0.125, 0.088],
+  egg: [[[-0.084, -0.06], [0.084, -0.06], [0, 0.084]], 0.155, 0],
+  milk: [[[-0.077, 0], [0.077, 0]], 0.33, 0],
+  comb: [[[0, 0]], 0.042, 0],
+  custard: [[[-0.125, -0.06], [0.125, -0.06], [0, 0.125]], 0.062, 0],
+  butter: [[[-0.1, 0], [0.1, 0]], 0.09, 0],
   tart: [[[0, 0]], 0.075, 0],
-  honey: [[[-0.1, 0], [0.1, 0]], 0.215, 0]
+  honey: [[[-0.112, 0], [0.112, 0]], 0.24, 0]
 };
 function trayLayout(items, i) { // mixed stack: same-kind items share layers
   let y = 0, layerKind = null, inLayer = 0, p = null;
@@ -195,9 +195,9 @@ class Pile {
 
 const A = world.anchors;
 const piles = {
-  pieIn: new Pile(scene, basketLayout, A.pieIn), pieOut: new Pile(scene, gridLayout(3, 1, 0.42, 0), A.pieOut),
+  pieIn: new Pile(scene, basketLayout, A.pieIn), pieOut: new Pile(scene, gridLayout(3, 1, 0.48, 0), A.pieOut),
   breadIn: new Pile(world.breadGroup, basketLayout, A.breadIn), breadOut: new Pile(world.breadGroup, gridLayout(2, 2, 0.55, 0.22), A.breadOut),
-  stallPie: new Pile(scene, gridLayout(3, 1, 0.47, 0, -0.8, -0.05), A.stall), stallBread: new Pile(scene, gridLayout(2, 2, 0.52, 0.25, 0.85, -0.05), A.stall),
+  stallPie: new Pile(scene, gridLayout(3, 1, 0.5, 0, -0.8, -0.05), A.stall), stallBread: new Pile(scene, gridLayout(2, 2, 0.52, 0.25, 0.85, -0.05), A.stall),
   jamIn: new Pile(world.jamGroup, basketLayout, A.jamIn), jamOut: new Pile(world.jamGroup, gridLayout(4, 2, 0.26, 0.24), A.jamOut),
   stallJam: new Pile(world.jamGroup, gridLayout(4, 3, 0.24, 0.22), A.jamTable)
 };
@@ -363,19 +363,41 @@ function refreshPads() {
 }
 
 // ---------- zones on the ground (soft markers) ----------
+// Ground spots: a big clear icon and a bold label. Honey rings are for putting things in, green rings for picking up.
+const PUT = ['In', 'Stall', 'Sell', 'Orders'];
 function zoneTex(icon, label) {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 256; const c = cv.getContext('2d');
-  c.beginPath(); c.arc(128, 128, 112, 0, Math.PI * 2); c.fillStyle = 'rgba(255,250,238,.7)'; c.fill();
-  c.lineWidth = 9; c.strokeStyle = 'rgba(255,255,255,.95)'; c.stroke();
-  if (IMG[icon]) { c.drawImage(IMG[icon], 58, 28, 140, 140); }
-  if (label) { c.fillStyle = '#3b3a2c'; c.font = 'bold 40px ui-rounded, -apple-system, "Segoe UI", sans-serif'; c.textAlign = 'center'; c.fillText(label, 128, 212); }
+  const S2 = 512, cv = document.createElement('canvas'); cv.width = cv.height = S2; const c = cv.getContext('2d');
+  const put = PUT.some((w) => label.includes(w) || label.endsWith(' in'));
+  c.beginPath(); c.arc(256, 256, 236, 0, Math.PI * 2); c.fillStyle = 'rgba(255,250,238,.9)'; c.fill();
+  c.lineWidth = 22; c.strokeStyle = put ? '#e9b44c' : '#5f9a52'; c.stroke();
+  c.beginPath(); c.arc(256, 256, 214, 0, Math.PI * 2); c.lineWidth = 4; c.strokeStyle = 'rgba(255,255,255,.9)'; c.stroke();
+  c.beginPath(); c.arc(256, 186, 134, 0, Math.PI * 2); c.fillStyle = put ? '#f3dca4' : '#cfe3bd'; c.fill();
+  if (IMG[icon]) c.drawImage(IMG[icon], 116, 46, 280, 280);
+  c.fillStyle = '#2b241c'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = `800 ${label.length > 9 ? 62 : 74}px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif`; c.fillText(label, 256, 384);
+  c.font = '700 40px ui-rounded, -apple-system, "Segoe UI", sans-serif'; c.fillStyle = put ? '#9a6a10' : '#3f6b45';
+  c.fillText(put ? '▼ put here' : '▲ pick up', 256, 444);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+// A small upright sign over each spot, so you can read what it is from any angle; it shows as you come near.
+const signs = [];
+function signTex(icon, label) {
+  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 128; const c = cv.getContext('2d');
+  roundRect(c, 4, 4, 376, 120, 40); c.fillStyle = 'rgba(255,250,240,.96)'; c.fill(); c.lineWidth = 5; c.strokeStyle = 'rgba(122,90,50,.35)'; c.stroke();
+  if (IMG[icon]) c.drawImage(IMG[icon], 14, 12, 104, 104);
+  c.fillStyle = '#2b241c'; c.font = `800 ${label.length > 9 ? 40 : 48}px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif`; c.textBaseline = 'middle'; c.fillText(label, 124, 66);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const zones = {};
 function addZone(name, pos, icon, label, parent = scene) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshStandardMaterial({ map: zoneTex(icon, label), transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 }));
+  // drawn without lighting or tone mapping so the colours and words stay crisp in full sun
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: zoneTex(icon, label), color: 0xf4f1ea, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   m.rotation.x = -Math.PI / 2; m.position.set(pos.x, 0.025, pos.z); m.receiveShadow = true; parent.add(m);
   zones[name] = { pos: new V3(pos.x, 0, pos.z), mesh: m, r: 0.95 };
+  if (name !== 'stallIn' && name !== 'cash') {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex(icon, label), transparent: true, depthWrite: false, opacity: 0, toneMapped: false, fog: false }));
+    sp.scale.set(2.0, 0.667, 1); sp.position.set(pos.x, 2.5, pos.z - 0.2); sp.renderOrder = 5; parent.add(sp); signs.push(sp);
+  }
 }
 
 // ---------- customers ----------
@@ -384,7 +406,7 @@ const customers = [], queue = [];
 const POOL = [];
 for (let i = 0; i < 16; i++) {
   const p = makePerson({ seed: 100 + i * 17 }); p.visible = false; scene.add(p);
-  const bub = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false })); bub.scale.set(0.62, 0.62, 1); bub.position.y = 2.15; bub.visible = false; p.add(bub);
+  const bub = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false })); bub.scale.set(0.85, 0.85, 1); bub.position.y = 2.3; bub.visible = false; p.add(bub);
   POOL.push({ person: p, bub, busy: false, carry: new Pile(p.userData.tray, trayLayout) });
 }
 const bubbleMats = {};
@@ -633,8 +655,19 @@ function moveActor(a, dt) {
   const sp = Math.hypot(a.vel.x, a.vel.z);
   if (a !== player) a.stuck = (moved < sp * 0.35 && sp > 0.5) ? (a.stuck || 0) + dt : Math.max(0, (a.stuck || 0) - dt);
   if (sp > 0.15) a.facing = Math.atan2(a.vel.x, a.vel.z);
+  const yaw0 = a.obj.rotation.y;
   turnTo(a.obj, a.facing, dt, 12);
-  animatePerson(a.obj, Math.min(moved, sp + 0.01), dt, a.carry.count > 0);
+  const walk = Math.min(moved, sp + 0.01);
+  animatePerson(a.obj, walk, dt, a.carry.count > 0);
+  // lean gently into turns and forward when hurrying, like a real person
+  const body = a.obj.userData.body, turn = (a.obj.rotation.y - yaw0) / Math.max(dt, 1e-4);
+  const roll = THREE.MathUtils.clamp(-turn * walk * 0.012, -0.16, 0.16), pitch = THREE.MathUtils.clamp(walk * 0.022, 0, 0.1);
+  body.rotation.z += (roll - body.rotation.z) * Math.min(1, dt * 8); body.rotation.x += (pitch - body.rotation.x) * Math.min(1, dt * 8);
+  // soft dust at each footstep on the paths
+  if (a === player && walk > 2.6) {
+    const step = Math.floor(a.obj.userData.phase / Math.PI);
+    if (step !== a.lastStep) { a.lastStep = step; const side = step % 2 ? 1 : -1, f = a.obj.rotation.y; puff(p.clone().add(new V3(Math.cos(f) * 0.1 * side, 0.06, -Math.sin(f) * 0.1 * side)), { color: 0xe6d6b8, size: 0.16, opacity: 0.4, life: 0.6, grow: 0.7, vel: new V3(-a.vel.x * 0.06, 0.25, -a.vel.z * 0.06) }); }
+  }
   a.carry.update(dt);
 }
 
@@ -1024,8 +1057,11 @@ function camDistance() {
   const d = want / (2 * Math.tan(THREE.MathUtils.degToRad(fov / 2)) * camera.aspect);
   return THREE.MathUtils.clamp(d, 12, 21) * zoom;
 }
+const lookAhead = new V3();
 function updateCamera(dt, snap) {
-  const target = player.obj.position.clone().add(new V3(0, 0.8, 0));
+  // the camera leads a little in the direction you're walking, so you see where you're going
+  lookAhead.lerp(new V3(player.vel.x, 0, player.vel.z).multiplyScalar(0.32), snap ? 1 : 1 - Math.exp(-2.5 * dt));
+  const target = player.obj.position.clone().add(new V3(0, 0.8, 0)).add(lookAhead);
   const d = camDistance(), el = THREE.MathUtils.degToRad(44);
   const want = target.clone().add(new V3(0, Math.sin(el) * d, Math.cos(el) * d));
   const k = snap ? 1 : 1 - Math.exp(-6 * dt);
@@ -1108,6 +1144,7 @@ function updateWorld(dt, t) {
     for (const c of world.field.cells) if (c.grow < 1) { c.grow = Math.min(1, c.grow + dt * rate); fieldDirty = true; }
     if (fieldDirty) { updateFieldInstances(world.field); fieldDirty = false; }
   }
+  for (const sp of signs) { const d = Math.hypot(sp.position.x - pp.x, sp.position.z - pp.z); const want = playing && d < 5.5 ? 1 : 0; sp.material.opacity += (want - sp.material.opacity) * Math.min(1, dt * 6); sp.visible = sp.material.opacity > 0.02; }
   { // see through the stall awning while you stand behind the counter
     const behind = playing && Math.abs(pp.x - SPOTS.stall.x) < 2.8 && pp.z < SPOTS.stall.z && pp.z > SPOTS.stall.z - 3.2;
     for (const m of world.stall.userData.fadeMats) {

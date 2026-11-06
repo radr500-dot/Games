@@ -5,14 +5,17 @@ import {
   rand, fbm, noise3, paint, paintFaces, displace, at, mesh, merge, canvasTex, speckle, mats, wheatStalkGeo,
   makeApple, makeJam, makeBasket, makeBarrel, makeCrate, makeTable, makeChair, makeLamp, makeBench, makeUmbrella, makePerson
 } from './models.js';
+import { buildFarm, FARM_PATHS, FARM_SPOTS } from './farm.js';
 
 // ---------- layout ----------
-export const BOUNDS = { minX: -16.2, maxX: 16.2, minZ: -14.2, maxZ: 14.6 };
+export const BOUNDS = { minX: -30.8, maxX: 30.8, minZ: -14.2, maxZ: 14.6 };
+export const HOME = { minX: -16.2, maxX: 16.2 }; // the first plot; the east and west land opens later
 export const PATHS = [ // [x1,z1,x2,z2,width]
   [0, 18, 0, 6.4, 2.0], [0, 4.2, 0, -8.6, 2.0],
   [0, 1.2, -6, 1.2, 1.6], [0, 1.2, 6.2, 1.2, 1.6],
   [0, -5, -4.4, -5, 1.8], [0, -5, 4.4, -5, 1.8],
-  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-4.4, -5, -9.6, -6.6, 1.6], [-3.2, 1.2, -3.2, -0.2, 1.4]
+  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-4.4, -5, -9.6, -6.6, 1.6], [-3.2, 1.2, -3.2, -0.2, 1.4],
+  ...FARM_PATHS
 ];
 export const PLAZAS = [[0, -5.6, 3.2], [0, 4.9, 2.4]];
 export function pathAmount(x, z) { // 0 = grass, 1 = path
@@ -33,7 +36,8 @@ export const SPOTS = {
   stall: new THREE.Vector3(0, 0, 5.6), stallIn: new THREE.Vector3(0, 0, 4.1), cash: new THREE.Vector3(2.5, 0, 4.4),
   gate: new THREE.Vector3(0, 0, 17),
   jamKitchen: new THREE.Vector3(-9.6, 0, -9.4), jamIn: new THREE.Vector3(-10.9, 0, -7.2), jamOut: new THREE.Vector3(-8.3, 0, -7.2),
-  jamTable: new THREE.Vector3(-2.45, 0, 5.6), cart: new THREE.Vector3(-3.2, 0, -0.4)
+  jamTable: new THREE.Vector3(-2.45, 0, 5.6), cart: new THREE.Vector3(-3.2, 0, -0.4),
+  ...FARM_SPOTS
 };
 export const TREE_SPOTS = {
   start: [[-7.4, -1.6], [-10.4, -1.6], [-7.4, 2.0], [-10.4, 2.0]],
@@ -62,9 +66,35 @@ export const PADS = {
   helper2: { pos: [5.0, 3.3], cost: 170, name: 'Field helper', icon: 'helper', req: 'bread' },
   price2: { pos: [2.8, -1.6], cost: 160, name: 'Honey glaze', icon: 'jam', req: 'price1' },
   stall2: { pos: [-2.6, 2.6], cost: 130, name: 'Bigger stall', icon: 'bread', req: 'barrow' },
-  helper3: { pos: [-4.8, 4.3], cost: 220, name: 'Second orchard helper', icon: 'helper', req: 'helper' }
+  helper3: { pos: [-4.8, 4.3], cost: 220, name: 'Second orchard helper', icon: 'helper', req: 'helper' },
+  // the bigger farm: new land, new produce, new bakes
+  wagon: { pos: [10.5, -5.3], cost: 120, name: 'Order wagon', icon: 'wagon' },
+  eastLand: { pos: [14.6, -6.2], cost: 400, name: 'East meadow', icon: 'land', lvl: 5 },
+  hens: { pos: [19.8, -7.6], cost: 250, name: 'Hen house', icon: 'egg', req: 'eastLand' },
+  pastry: { pos: [19.8, -2.1], cost: 320, name: 'Custard oven', icon: 'custard', req: 'hens' },
+  dairy: { pos: [27.2, -7.6], cost: 480, name: 'Dairy barn', icon: 'milk', req: 'pastry', lvl: 7 },
+  churn: { pos: [27.2, -2.1], cost: 540, name: 'Butter churn', icon: 'butter', req: 'dairy' },
+  runner2: { pos: [-1.9, -2.6], cost: 500, name: 'Second shop helper', icon: 'runner', req: 'pastry' },
+  handE: { pos: [23.5, -5.6], cost: 600, name: 'Meadow helper', icon: 'helper', req: 'churn' },
+  westLand: { pos: [-15.0, 0.2], cost: 900, name: 'West hill', icon: 'land', req: 'eastLand', lvl: 10 },
+  berries: { pos: [-18.6, 0.2], cost: 650, name: 'Strawberry patch', icon: 'berry', req: 'westLand' },
+  tarts: { pos: [-20.5, -2.1], cost: 800, name: 'Tart oven', icon: 'tart', req: 'berries' },
+  bees: { pos: [-27.4, -7.6], cost: 1000, name: 'Bee hives', icon: 'comb', req: 'tarts', lvl: 13 },
+  honey: { pos: [-27.4, -2.1], cost: 1100, name: 'Honey house', icon: 'honey', req: 'bees' },
+  handW: { pos: [-24, -5.6], cost: 1250, name: 'Hill helper', icon: 'helper', req: 'honey' }
 };
-export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'bread', 'oven1', 'jam', 'tea', 'helper', 'flowers', 'price1', 'barrow', 'runner', 'sign2', 'orchard3', 'oven2', 'helper2', 'price2', 'stall2', 'helper3'];
+// Upgrades that never run out: each one levels up again and again, a little dearer each time.
+export const LEVELS = {
+  lvOven: { pos: [0, -7.0], name: 'Faster ovens', icon: 'fire', req: 'oven2', base: 200 },
+  lvPrice: { pos: [2.8, -1.6], name: 'Better recipes', icon: 'pie', req: 'price2', base: 180 },
+  lvTray: { pos: [-2.6, 2.6], name: 'Bigger tray', icon: 'tray', req: 'stall2', base: 160, max: 12 },
+  lvCrowd: { pos: [2.6, 12.6], name: 'More customers', icon: 'sign', req: 'sign2', base: 200 },
+  lvGrow: { pos: [-4.8, 4.3], name: 'Faster growing', icon: 'tree', req: 'helper3', base: 220 },
+  lvStore: { pos: [5.0, 3.3], name: 'Bigger baskets', icon: 'bread', req: 'helper2', base: 160, max: 10 },
+  lvFarm: { pos: [23.5, -5.6], name: 'Busier animals', icon: 'egg', req: 'handE', base: 400 }
+};
+export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'bread', 'oven1', 'jam', 'tea', 'helper', 'flowers', 'price1', 'barrow', 'runner', 'sign2', 'orchard3', 'oven2', 'helper2', 'price2', 'stall2', 'helper3',
+  'wagon', 'eastLand', 'hens', 'pastry', 'dairy', 'churn', 'runner2', 'handE', 'westLand', 'berries', 'tarts', 'bees', 'honey', 'handW'];
 
 // ---------- sky + ground ----------
 function makeSky(scene) {
@@ -199,12 +229,12 @@ function makeGrass(scene, avoid) {
       float sway = sin(uTime * 1.6 + wp.x * 0.6 + wp.y * 0.4) * 0.06 + sin(uTime * 2.7 + wp.x) * 0.02;
       transformed.x += sway * position.y * 3.0; transformed.z += sway * position.y * 1.5;`);
   };
-  const N = 7000, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
+  const N = 9500, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
   const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   let k = 0, tries = 0;
   while (k < N && tries < N * 6) {
     tries++;
-    const x = (r() - 0.5) * 40, z = (r() - 0.5) * 38;
+    const x = (r() - 0.5) * 68, z = (r() - 0.5) * 36;
     if (pathAmount(x, z) > 0.05 || avoid(x, z)) continue;
     if (fbm(x * 0.4, 5, z * 0.4) < -0.25) continue; // leave natural bare patches
     q.setFromEuler(new THREE.Euler(0, r() * 6.28, 0));
@@ -216,11 +246,11 @@ function makeGrass(scene, avoid) {
   // little flowers dotted in the grass
   const fg = merge([at(new THREE.SphereGeometry(0.05, 6, 5), 0, 0.2, 0), at(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 3), 0, 0.1, 0)]);
   paint(fg, (x, y, z, c) => c.set(y > 0.16 ? 0xffffff : 0x4a7a30));
-  const fm = new THREE.InstancedMesh(fg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }), 600);
+  const fm = new THREE.InstancedMesh(fg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }), 1000);
   const fc = [0xfff6e0, 0xf4d35e, 0xe58fb0, 0xb7a6e8, 0xffffff];
   k = 0;
-  for (let i = 0; i < 1600 && k < 600; i++) {
-    const x = (r() - 0.5) * 40, z = (r() - 0.5) * 38;
+  for (let i = 0; i < 2800 && k < 1000; i++) {
+    const x = (r() - 0.5) * 68, z = (r() - 0.5) * 36;
     if (pathAmount(x, z) > 0.05 || avoid(x, z)) continue;
     mtx.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(1, 0.7 + r() * 0.6, 1));
     fm.setMatrixAt(k, mtx); fm.setColorAt(k, col.set(fc[(r() * fc.length) | 0])); k++;
@@ -235,16 +265,16 @@ function makeForest(scene) {
   const canopy = merge([foliageBlob(0, 2.6, 0, 1.3, 1, 0x6f9e48, 0x2f5a26, 2), foliageBlob(0.6, 2.1, 0.3, 0.9, 2, 0x6f9e48, 0x2f5a26, 2), foliageBlob(-0.5, 2.2, -0.3, 0.95, 3, 0x6f9e48, 0x2f5a26, 2)]);
   const pine = merge([0, 1, 2, 3].map((i) => paint(at(new THREE.ConeGeometry(1.3 - i * 0.26, 1.5, 9), 0, 1.6 + i * 0.8, 0), (x, y, z, c) => c.set(0x2f5a33).lerp(new THREE.Color(0x5d8a4a), THREE.MathUtils.clamp((y - 1) / 4, 0, 1)))));
   const trunk = at(new THREE.CylinderGeometry(0.15, 0.22, 1.8, 7), 0, 0.9, 0);
-  const N = 170;
+  const N = 260;
   const ic = new THREE.InstancedMesh(canopy, mats().foliage, N), ip = new THREE.InstancedMesh(pine, mats().foliage, N), it = new THREE.InstancedMesh(trunk, mats().bark, N * 2);
   for (const m of [ic, ip, it]) { m.castShadow = true; m.receiveShadow = true; }
   const mtx = new THREE.Matrix4(), col = new THREE.Color();
   let a = 0, b = 0, t = 0;
-  for (let i = 0; i < N * 2; i++) {
-    const ang = r() * Math.PI * 2, d = 21 + r() * 22;
-    const x = Math.cos(ang) * d * 1.05, z = Math.sin(ang) * d;
+  for (let i = 0; i < N * 4; i++) {
+    const ang = r() * Math.PI * 2, d = 19 + r() * 26;
+    const x = Math.cos(ang) * d * 1.9, z = Math.sin(ang) * d;
     if (Math.abs(x) < 3.5 && z > 14) continue; // keep the road clear
-    if (Math.abs(x) < BOUNDS.maxX + 2 && Math.abs(z) < BOUNDS.maxZ + 2) continue;
+    if (Math.abs(x) < BOUNDS.maxX + 2.5 && z > BOUNDS.minZ - 2.5 && z < BOUNDS.maxZ + 2.5) continue;
     const s = 0.9 + r() * 0.9;
     mtx.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, r() * 6, 0)), new THREE.Vector3(s, s * (0.9 + r() * 0.3), s));
     if (r() > 0.45 && a < N) { ic.setMatrixAt(a, mtx); ic.setColorAt(a++, col.setHSL(0.25 + r() * 0.04, 0.3, 0.75 + r() * 0.3)); }
@@ -257,25 +287,33 @@ function makeForest(scene) {
 }
 
 function makeFence(scene) {
+  // White picket fence round the whole farm, plus inner fences that come down when you buy new land.
   const picket = merge([new THREE.BoxGeometry(0.09, 0.85, 0.035).translate(0, 0.42, 0), at(new THREE.ConeGeometry(0.064, 0.09, 4), 0, 0.89, 0, 0, Math.PI / 4, 0, new THREE.Vector3(1, 1, 0.4))]);
-  const pts = [];
   const { minX, maxX, minZ, maxZ } = BOUNDS;
-  const add = (x1, z1, x2, z2) => { const L = Math.hypot(x2 - x1, z2 - z1), n = Math.floor(L / 0.22); for (let i = 0; i <= n; i++) { const t = i / n; pts.push([x1 + (x2 - x1) * t, z1 + (z2 - z1) * t, Math.atan2(x2 - x1, z2 - z1)]); } };
-  add(minX - 0.4, minZ - 0.4, maxX + 0.4, minZ - 0.4); add(minX - 0.4, minZ - 0.4, minX - 0.4, maxZ + 0.4); add(maxX + 0.4, minZ - 0.4, maxX + 0.4, maxZ + 0.4);
-  add(minX - 0.4, maxZ + 0.4, -1.6, maxZ + 0.4); add(1.6, maxZ + 0.4, maxX + 0.4, maxZ + 0.4);
-  const im = new THREE.InstancedMesh(picket, mats().white, pts.length); im.castShadow = true; im.receiveShadow = true;
-  const mtx = new THREE.Matrix4();
-  pts.forEach(([x, z, a], i) => { mtx.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a + Math.PI / 2, 0)), new THREE.Vector3(1, 1, 1)); im.setMatrixAt(i, mtx); });
-  scene.add(im);
-  const rails = (x1, z1, x2, z2) => { for (const y of [0.3, 0.65]) { const L = Math.hypot(x2 - x1, z2 - z1); const r = mesh(new THREE.BoxGeometry(L, 0.06, 0.03), mats().white); r.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); r.rotation.y = -Math.atan2(z2 - z1, x2 - x1); r.position.z += 0.03; scene.add(r); } };
-  rails(minX - 0.4, minZ - 0.4, maxX + 0.4, minZ - 0.4); rails(minX - 0.4, minZ - 0.4, minX - 0.4, maxZ + 0.4); rails(maxX + 0.4, minZ - 0.4, maxX + 0.4, maxZ + 0.4);
-  rails(minX - 0.4, maxZ + 0.4, -1.6, maxZ + 0.4); rails(1.6, maxZ + 0.4, maxX + 0.4, maxZ + 0.4);
+  const line = (parent, segs) => {
+    const pts = [];
+    const add = (x1, z1, x2, z2) => { const L = Math.hypot(x2 - x1, z2 - z1), n = Math.floor(L / 0.22); for (let i = 0; i <= n; i++) { const t = i / n; pts.push([x1 + (x2 - x1) * t, z1 + (z2 - z1) * t, Math.atan2(x2 - x1, z2 - z1)]); } };
+    segs.forEach((s) => add(...s));
+    const im = new THREE.InstancedMesh(picket, mats().white, pts.length); im.castShadow = true; im.receiveShadow = true;
+    const mtx = new THREE.Matrix4();
+    pts.forEach(([x, z, a], i) => { mtx.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a + Math.PI / 2, 0)), new THREE.Vector3(1, 1, 1)); im.setMatrixAt(i, mtx); });
+    parent.add(im);
+    for (const [x1, z1, x2, z2] of segs) for (const y of [0.3, 0.65]) { const L = Math.hypot(x2 - x1, z2 - z1); const r = mesh(new THREE.BoxGeometry(L, 0.06, 0.03), mats().white); r.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); r.rotation.y = -Math.atan2(z2 - z1, x2 - x1); r.position.z += 0.03; parent.add(r); }
+  };
+  const x0 = minX - 0.4, x1 = maxX + 0.4, z0 = minZ - 0.4, z1 = maxZ + 0.4;
+  line(scene, [[x0, z0, x1, z0], [x0, z0, x0, z1], [x1, z0, x1, z1], [x0, z1, -1.6, z1], [1.6, z1, x1, z1]]);
+  const dividers = {};
+  for (const [id, x] of [['eastLand', HOME.maxX + 0.4], ['westLand', HOME.minX - 0.4]]) {
+    const g = new THREE.Group(); scene.add(g); dividers[id] = g;
+    line(g, [[x, z0, x, z1]]);
+  }
   // gate posts
   for (const x of [-1.7, 1.7]) { const p = mesh(at(new THREE.BoxGeometry(0.22, 1.5, 0.22), x, 0.75, maxZ + 0.4), mats().woodDark); scene.add(p); scene.add(mesh(at(new THREE.SphereGeometry(0.14, 10, 8), x, 1.58, maxZ + 0.4), mats().woodDark)); }
+  return dividers;
 }
 
 // ---------- buildings ----------
-function shingleRoof(w, d, rise, color = 0xc8553d) {
+export function shingleRoof(w, d, rise, color = 0xc8553d) {
   // Two sloped roof faces covered with overlapping, slightly varied clay shingles.
   const grp = new THREE.Group();
   const half = d / 2 + 0.35, L = Math.hypot(half, rise), ang = Math.atan2(rise, half);
@@ -598,8 +636,9 @@ function makeBunting() {
 
 // ---------- build everything ----------
 export function buildWorld(scene) {
-  makeSky(scene); makeGround(scene); makeForest(scene); makeFence(scene);
-  const colliders = []; // {x,z,r} circles or {box:[minx,minz,maxx,maxz]}
+  makeSky(scene); makeGround(scene); makeForest(scene); const dividers = makeFence(scene);
+  const colliders = [];
+  for (const [id, x] of [['eastLand', HOME.maxX + 0.4], ['westLand', HOME.minX - 0.4]]) colliders.push({ box: [x - 0.2, BOUNDS.minZ - 1, x + 0.2, BOUNDS.maxZ + 1], until: id }); // {x,z,r} circles or {box:[minx,minz,maxx,maxz]}
   const box = (x, z, w, d) => colliders.push({ box: [x - w / 2, z - d / 2, x + w / 2, z + d / 2] });
 
   const bakery = makeBakery(); bakery.group.position.set(0, 0, -11.2); scene.add(bakery.group); box(0, -11.2, 7.4, 4.8);
@@ -665,15 +704,19 @@ export function buildWorld(scene) {
   const bunting = makeBunting(); bunting.position.set(0, 0, 12.2); scene.add(bunting);
   colliders.push({ x: -2.2, z: 12.2, r: 0.12, need: 'sign2' }, { x: 2.2, z: 12.2, r: 0.12, need: 'sign2' });
 
+  const farm = buildFarm(scene, colliders, { shingleRoof, signTex, makeOven, foliageBlob });
+  for (const b of farm.bushes) trees.push(b);
   const wind = makeGrass(scene, (x, z) => {
     if (x > FIELD.x0 - 0.5 && x < FIELD.x0 + FIELD.nx + 0.5 && z > FIELD.z0 - 0.5 && z < FIELD.z0 + FIELD.nz + 0.5) return true;
     if (Math.hypot(x - 8, z - 11.4) < 3.6) return true;
-    for (const c of colliders) if (c.box) { const [a, b, cc, d] = c.box; if (x > a - 0.2 && x < cc + 0.2 && z > b - 0.2 && z < d + 0.2) return true; }
+    if (Math.hypot((x - 20.4) / 2.9, (z - 8.6) / 2.1) < 1) return true; // pond
+    if (x < -20 && x > -30 && z > 1.8 && z < 10.6) return true; // strawberry beds
+    for (const c of colliders) if (c.box) { const [a, b, cc, d] = c.box; if ((cc - a) * (d - b) > 15) continue; if (x > a - 0.2 && x < cc + 0.2 && z > b - 0.2 && z < d + 0.2) return true; }
     return false;
   });
 
   return {
-    colliders, trees, treeGroups, field, tea, flowers, bakery, jamGroup, jamKitchen, signpost, bunting, pieOven, breadOven, breadGroup,
+    colliders, trees, treeGroups, farm, dividers, field, tea, flowers, bakery, jamGroup, jamKitchen, signpost, bunting, pieOven, breadOven, breadGroup,
     anchors: {
       pieIn: pieInBasket.position.clone().add(new THREE.Vector3(0, 0.25, 0)),
       pieOut: pieTable.position.clone().add(new THREE.Vector3(0, 0.83, 0)),

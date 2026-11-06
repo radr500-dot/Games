@@ -1,6 +1,6 @@
 // Offline support: keep a copy of the app so it opens with no signal.
 // Only this game's old caches are cleared; other games and My Games share the same site storage.
-const CACHE = 'wayfarers-v1';
+const CACHE = 'wayfarers-v2';
 const FILES = [
   './', './index.html', './style.css', './app.js', './game.js', './models.js', './eras.js', './audio.js',
   './vendor/three.module.min.js',

@@ -6,6 +6,7 @@ import { buildProp, buildBody, buildHead, buildLeg, buildHat, buildItem, buildPr
 
 const ROAD = 5.2;          // half width of the road
 const MAXV = 80;           // most travelers drawn at once (the count can go higher)
+const MAXD = 40;           // most knocked-over travelers drawn at once
 const MAXE = 90;           // most rival travelers drawn
 const SHOT_SPEED = 34;
 const PLAYER_COLOR = '#d9654b';
@@ -245,9 +246,9 @@ export class Game {
     this.debrisMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
 
     const s = this.scene;
-    this.pBody = new Pool(s, buildBody(), this.unitMat, MAXV + MAXE, { shadow: true, colors: true });
-    this.pHead = new Pool(s, buildHead(), this.unitMat, MAXV + MAXE, { shadow: true, colors: true });
-    this.pLeg = new Pool(s, buildLeg(), this.unitMat, (MAXV + MAXE) * 2, { colors: true });
+    this.pBody = new Pool(s, buildBody(), this.unitMat, MAXV + MAXE + MAXD, { shadow: true, colors: true });
+    this.pHead = new Pool(s, buildHead(), this.unitMat, MAXV + MAXE + MAXD, { shadow: true, colors: true });
+    this.pLeg = new Pool(s, buildLeg(), this.unitMat, (MAXV + MAXE + MAXD) * 2, { colors: true });
     this.coins = new Pool(s, buildCoin(), this.coinMat, 500, { shadow: true });
     this.puffs = new Pool(s, new THREE.IcosahedronGeometry(0.5, 1), this.puffMat, 260);
     this.debris = new Pool(s, new THREE.BoxGeometry(0.42, 0.3, 0.3), this.debrisMat, 420, { colors: true, shadow: true });
@@ -384,8 +385,8 @@ export class Game {
     this.roadLen = this.length + 140;
 
     // era-specific parts of the travelers and what they throw
-    this.pHat = new Pool(this.scene, buildHat(this.era.hat), this.unitMat, MAXV, { shadow: true });
-    this.pItem = new Pool(this.scene, buildItem(this.era.item), this.unitMat, MAXV);
+    this.pHat = new Pool(this.scene, buildHat(this.era.hat), this.unitMat, MAXV + MAXD, { shadow: true });
+    this.pItem = new Pool(this.scene, buildItem(this.era.item), this.unitMat, MAXV + MAXD);
     this.eHat = new Pool(this.scene, buildHat(this.era.hat), this.unitMat, MAXE, { shadow: true });
     this.eItem = new Pool(this.scene, buildItem(this.era.item), this.unitMat, MAXE);
     this.projMat.emissive.set(this.era.proj === 'laser' || this.era.proj === 'pellet' ? '#55aaaa' : '#000000');
@@ -793,6 +794,7 @@ export class Game {
     this.band = { x: 0, tx: 0, z: 2, v: 0 };
     this.count = st.band;
     this.units = [];
+    this.dying = [];
     this.syncUnits(true);
     this.shots = [];
     this.flying = [];      // coins in the air
@@ -819,30 +821,59 @@ export class Game {
     return [Math.cos(a) * r, Math.sin(a) * r * 0.85];
   }
 
-  // keep the drawn travelers in step with the count
-  syncUnits(instant = false) {
+  // Keep the drawn travelers in step with the count. Every traveler keeps its
+  // own place in the band, so nobody shuffles around when the count changes.
+  syncUnits(instant = false, victims = null) {
     const want = Math.min(Math.max(0, Math.ceil(this.count)), MAXV);
     while (this.units.length < want) {
       const i = this.units.length;
       const [sx, sz] = this.slot(i);
-      this.units.push({ ox: instant ? sx : sx * 0.3, oz: instant ? sz : sz * 0.3 + 1.2, ph: Math.random() * 6, fire: Math.random(), pop: instant ? 1 : 0, skin: _c.set(SKIN[i % SKIN.length]).clone() });
+      this.units.push({ s: i, sx, sz, ox: instant ? sx : sx * 0.3, oz: instant ? sz : sz * 0.3 + 1.2, ph: Math.random() * 6, fire: Math.random(), pop: instant ? 1 : 0, skin: _c.set(SKIN[i % SKIN.length]).clone() });
     }
     while (this.units.length > want) {
-      // remove the one nearest the front
-      let bi = 0, bz = Infinity;
-      for (let i = 0; i < this.units.length; i++) if (this.units[i].oz < bz) { bz = this.units[i].oz; bi = i; }
-      const u = this.units[bi];
-      this.puff(this.band.x + u.ox, 0.8, this.band.z + u.oz, 0.9);
-      this.units.splice(bi, 1);
+      // the given travelers go first, otherwise the ones at the outside edge
+      let u = victims && victims.length ? victims.shift() : null;
+      if (!u || !this.units.includes(u)) u = this.units.reduce((m, x) => (x.s > m.s ? x : m), this.units[0]);
+      this.removeUnit(u);
     }
-    // reassign slots so the band stays a tidy circle
-    for (let i = 0; i < this.units.length; i++) { const [sx, sz] = this.slot(i); this.units[i].sx = sx; this.units[i].sz = sz; }
     this.bandR = 0.6 * Math.sqrt(Math.max(1, this.units.length)) + 0.35;
   }
 
-  setCount(n) {
+  // A traveler sits down: they tip over and fade, and the traveler at the outer
+  // edge of the band walks over to fill the gap.
+  removeUnit(u) {
+    const i = this.units.indexOf(u);
+    if (i < 0) return;
+    this.knockOver(this.band.x + u.ox, this.band.z + u.oz, u);
+    this.units.splice(i, 1);
+    // Close the gap: the nearest traveler further out steps in, then the
+    // nearest one further out fills their place, and so on. Each one only
+    // moves a short way, like a real crowd closing ranks.
+    let hole = u.s;
+    for (let guard = 0; guard < MAXV; guard++) {
+      const [hx, hz] = this.slot(hole);
+      let best = null, bd = Infinity;
+      for (const x of this.units) {
+        if (x.s <= hole) continue;
+        const d = (x.sx - hx) ** 2 + (x.sz - hz) ** 2;
+        if (d < bd) { bd = d; best = x; }
+      }
+      if (!best) break;
+      const old = best.s;
+      best.s = hole; best.sx = hx; best.sz = hz;
+      hole = old;
+    }
+  }
+
+  knockOver(x, z, u) {
+    if (this.dying.length >= MAXD) this.dying.shift();
+    this.dying.push({ x, z, ph: u.ph, skin: u.skin, t: 0, vz: 1.2 + Math.random() * 0.8, vx: (Math.random() - 0.5) * 0.8 });
+    if (Math.random() < 0.5) this.puff(x, 0.5, z, 0.6);
+  }
+
+  setCount(n, victims = null) {
     this.count = Math.max(0, Math.round(n));
-    this.syncUnits();
+    this.syncUnits(false, victims);
     this.hooks.onCount?.(this.count);
   }
 
@@ -924,48 +955,77 @@ export class Game {
     b.tx = clamp(b.tx, -this.maxX(), this.maxX());
     b.x = damp(b.x, b.tx, 14, dt);
 
-    // walls block the band
-    let blocked = null;
+    // Walls stop the band. The band's front rests against the wall face and only
+    // ever moves forward, so it never bounces back and forth.
+    let blocked = null, stopZ = -Infinity;
+    const touching = [];
     if (running) {
       for (const o of this.obstacles) {
-        if (o.dead || (o.type !== 'wall')) continue;
+        if (o.dead || o.type !== 'wall') continue;
         if (o.z > b.z + 3) continue;
-        if (o.z < b.z - 6) break;
-        const front = o.z + o.d / 2;
+        if (o.z < b.z - 8) break;
+        const face = o.z + o.d / 2 + 0.32;
         for (const u of this.units) {
-          const ux = b.x + u.ox, uz = b.z + u.oz;
-          if (ux > o.x0 - 0.25 && ux < o.x1 + 0.25 && uz - 0.3 <= front && uz > o.z - 1.5) { blocked = o; break; }
+          const ux = b.x + u.sx;
+          if (ux > o.x0 - 0.3 && ux < o.x1 + 0.3) {
+            const z = face - u.sz;            // where the band would stop for this traveler
+            if (z > stopZ) { stopZ = z; blocked = o; }
+          }
         }
         if (blocked) break;
       }
     }
     const runSpeed = [7, 8.6, 10.4][this.speedSetting] || 8.6;
-    b.v = damp(b.v, running && !blocked ? runSpeed : 0, blocked ? 30 : 5, dt);
-    if (running) b.z -= b.v * dt;
+    let pressing = false;
+    if (running) {
+      const nz = b.z - b.v * dt;
+      if (blocked && nz <= stopZ + 0.02) { pressing = b.z <= stopZ + 0.6; b.z = Math.min(b.z, Math.max(nz, stopZ)); }
+      else b.z = nz;
+    }
+    b.v = damp(b.v, running ? (pressing ? 1.5 : runSpeed) : 0, pressing ? 18 : 5, dt);
 
-    // pressing against a wall: the travelers at the front give it everything
-    if (blocked) {
-      this.consumeT += dt * (7 + this.count * 0.35);
+    // pressing against a wall: the travelers touching it push it down
+    if (pressing && blocked) {
+      const face = blocked.z + blocked.d / 2 + 0.32;
+      for (const u of this.units) {
+        const ux = b.x + u.ox, uz = b.z + u.oz;
+        if (ux > blocked.x0 - 0.3 && ux < blocked.x1 + 0.3 && uz < face + 0.5) touching.push(u);
+      }
+      touching.sort((a, c) => a.oz - c.oz);
+      this.consumeT += dt * (6 + this.count * 0.3);
       let n = Math.floor(this.consumeT);
       this.consumeT -= n;
       if (n > 0) {
         n = Math.min(n, this.count);
         blocked.hp -= n * this.power * 3;
         blocked.wob = 1;
-        this.setCount(this.count - n);
+        if (this.count > this.units.length) {
+          // a big band: show a few of the pushers sitting down, the rest are counted
+          for (let k = 0; k < Math.min(n, 3, touching.length); k++) { const u = touching[k]; this.knockOver(b.x + u.ox, b.z + u.oz, u); }
+        }
+        this.setCount(this.count - n, touching);
         this.hooks.sound?.('bump');
         if (blocked.hp <= 0) this.destroy(blocked); else this.drawWall(blocked);
       }
     } else this.consumeT = 0;
+    this.pressing = pressing;
 
     // units drift to their places in the band
     for (const u of this.units) {
-      u.ox = damp(u.ox, u.sx, 6, dt);
-      u.oz = damp(u.oz, u.sz, 6, dt);
+      // walk toward their place, eased but never faster than a quick step
+      const dx = u.sx - u.ox, dz = u.sz - u.oz, dist = Math.hypot(dx, dz);
+      if (dist > 1e-4) {
+        const step = Math.min(dist * (1 - Math.exp(-6 * dt)), 4.5 * dt);
+        u.ox += dx / dist * step; u.oz += dz / dist * step;
+      }
       u.pop = Math.min(1, u.pop + dt * 5);
+      if (blocked && !blocked.dead) {
+        const face = blocked.z + blocked.d / 2 + 0.32, ux = b.x + u.ox;
+        if (ux > blocked.x0 - 0.3 && ux < blocked.x1 + 0.3 && b.z + u.oz < face) u.oz = damp(u.oz, face - b.z, 30, dt);
+      }
       const wx = b.x + u.ox;
       if (wx > ROAD - 0.25) u.ox = ROAD - 0.25 - b.x; else if (wx < -ROAD + 0.25) u.ox = -ROAD + 0.25 - b.x;
-      u.ph += dt * (running ? b.v * 1.4 : 1.5);
+      u.ph += dt * (running ? Math.max(b.v, pressing ? 5 : 0) * 1.4 : 1.5);
     }
 
     // throwing
@@ -1130,11 +1190,11 @@ export class Game {
   updateRivals(dt, running) {
     const b = this.band;
     for (const g of this.groups) {
-      if (g.alive <= 0 && g.units.every((u) => !u.alive && u.fall >= 1)) continue;
+      if (g.alive <= 0 && g.units.every((u) => !u.alive && u.fall >= 1.42)) continue;
       if (!g.active && running && g.z - b.z > -16) g.active = true;
       let cx = 0, cz = 0, n = 0;
       for (const u of g.units) {
-        if (!u.alive) { if (u.fall > 0 && u.fall < 1) u.fall = Math.min(1, u.fall + dt * 3.5); continue; }
+        if (!u.alive) { if (u.fall > 0 && u.fall < 1.42) u.fall = Math.min(1.42, u.fall + dt * 3.5); continue; }
         u.ph += dt * (g.active ? 9 : 1.5);
         if (g.active && running) {
           // walk toward the band
@@ -1154,7 +1214,7 @@ export class Game {
               u.alive = false; u.fall = 0.001;
               g.alive = Math.max(0, g.alive - g.per); this.drawGroup(g);
               if (g.alive <= 0.01) { g.alive = 0; g.label.mesh.visible = false; }
-              this.setCount(this.count - Math.max(1, Math.round(take)));
+              this.setCount(this.count - Math.max(1, Math.round(take)), [m]);
               this.hooks.sound?.('bump');
               break;
             }
@@ -1198,6 +1258,13 @@ export class Game {
   }
 
   updateFx(dt) {
+    for (let i = this.dying.length - 1; i >= 0; i--) {
+      const d = this.dying[i];
+      d.t += dt;
+      const slow = Math.max(0, 1 - d.t * 3);
+      d.z += d.vz * slow * dt; d.x += d.vx * slow * dt;
+      if (d.t > 0.7) this.dying.splice(i, 1);
+    }
     for (let i = this.bits.length - 1; i >= 0; i--) {
       const d = this.bits[i];
       d.t += dt;
@@ -1227,9 +1294,10 @@ export class Game {
       const bob = run ? Math.abs(Math.sin(ph)) * 0.12 : Math.sin(ph) * 0.02;
       const s = pop < 1 ? 0.3 + 0.7 * (1 - Math.pow(1 - pop, 3)) : 1;
       _o.position.set(x, bob, z);
-      _o.rotation.set(fall ? -fall * Math.PI / 2 : (run ? -0.12 : 0), 0, run ? Math.sin(ph) * 0.06 : 0);
+      const tip = fall ? (color === RIVAL_COLOR ? -1 : 1) * Math.sin(Math.min(1, fall) * Math.PI / 2) * Math.PI / 2 : 0;
+      _o.rotation.set(fall ? tip : (run ? -0.12 : 0), 0, run ? Math.sin(ph) * 0.06 : 0);
       if (color === RIVAL_COLOR) _o.rotation.y = Math.PI;
-      _o.scale.setScalar(s * (fall ? 1 - Math.max(0, fall - 0.6) * 2 : 1));
+      _o.scale.setScalar(s * (fall > 1 ? Math.max(0.001, 1 - (fall - 1) * 2.4) : 1));
       _o.updateMatrix();
       const base = _o.matrix.clone();
       this.pBody.push(base, color === RIVAL_COLOR ? _v3c.set(RIVAL_COLOR) : body);
@@ -1245,11 +1313,13 @@ export class Game {
         this.pLeg.push(_m4, _legCol);
       }
     };
-    for (const u of this.units) drawOne(b.x + u.ox, b.z + u.oz, u.ph, u.pop, u.skin, PLAYER_COLOR, this.pHat, this.pItem, 0, running);
+    const pushing = this.pressing;
+    for (const u of this.units) drawOne(b.x + u.ox, b.z + u.oz, u.ph, u.pop, u.skin, PLAYER_COLOR, this.pHat, this.pItem, 0, running || pushing);
+    for (const d of this.dying) drawOne(d.x, d.z, d.ph, 1, d.skin, PLAYER_COLOR, this.pHat, this.pItem, Math.min(1, d.t / 0.35) + Math.max(0, d.t - 0.35) * 1.2, false);
     for (const g of this.groups) {
       if (g.z > b.z + 20 || g.z < b.z - 120) continue;
       for (const u of g.units) {
-        if (!u.alive && u.fall >= 1) continue;
+        if (!u.alive && u.fall >= 1.42) continue;
         drawOne(u.x, u.z, u.ph, 1, _skinCol.set(u.skin), RIVAL_COLOR, this.eHat, this.eItem, u.alive ? 0 : u.fall, g.active && u.alive);
       }
     }
@@ -1316,7 +1386,10 @@ export class Game {
 
   // where the band's count bubble goes on screen
   bandScreen() {
-    _v3.set(this.band.x, 2.4 + this.bandR * 0.3, this.band.z - this.bandR * 0.2);
+    // while pushing a wall, the bubble slides to the back so the wall's number stays readable
+    this.bubbleBack = damp(this.bubbleBack || 0, this.pressing ? 1 : 0, 8, 1 / 60);
+    const k = this.bubbleBack;
+    _v3.set(this.band.x, 2.4 + this.bandR * 0.3 - k * 1.2, this.band.z - this.bandR * 0.2 + k * (this.bandR * 1.3 + 0.6));
     _v3.project(this.camera);
     return { x: (_v3.x * 0.5 + 0.5) * this.w, y: (-_v3.y * 0.5 + 0.5) * this.h };
   }

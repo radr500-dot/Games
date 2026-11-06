@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wayfarers">
+  <meta name="theme-color" content="#9fd3ef">
+  <title>Wayfarers</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="view"></canvas>
+
+  <!-- Start screen -->
+  <section id="home" class="layer">
+    <a class="hub-pill" href="../"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>My Games</a>
+    <button class="icon-btn mode-btn home-mode" aria-label="Switch light or dark"></button>
+    <header class="title-card">
+      <h1>Wayfarers</h1>
+      <p class="era-line" id="homeEra">Stone Age · Stage 1</p>
+      <div class="era-track" id="eraTrack"></div>
+    </header>
+    <div class="home-bottom">
+      <div class="coin-chip"><span class="coin-ico"></span><span id="homeCoins">0</span></div>
+      <button class="big-btn" id="playBtn">Play</button>
+      <div class="home-row">
+        <button class="soft-btn" id="shopBtn"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg>Upgrades<span class="dot" id="shopDot" hidden></span></button>
+        <button class="soft-btn" id="settingsBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+      </div>
+      <p class="tip" id="homeTip"></p>
+    </div>
+  </section>
+
+  <!-- In-game top bar -->
+  <section id="hud" class="layer" hidden>
+    <div class="bar">
+      <a class="icon-btn hub-link" href="../" aria-label="My Games" title="My Games">
+        <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>
+      </a>
+      <button class="icon-btn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
+      <div class="progress">
+        <div class="progress-label" id="hudEra">Stone Age · Stage 1</div>
+        <div class="progress-track"><div class="progress-fill" id="progFill"></div><div class="progress-flag"></div></div>
+      </div>
+      <div class="coin-chip small" id="hudCoinChip"><span class="coin-ico"></span><span id="hudCoins">0</span></div>
+    </div>
+    <div class="count-bubble" id="countBubble"><span id="countNum">4</span></div>
+    <div id="toasts"></div>
+    <div class="steer-hint" id="steerHint">
+      <div class="hand"></div>
+      <p>Drag left and right to steer.<br><span>Touch anywhere to set off.</span></p>
+    </div>
+  </section>
+
+  <!-- Pause -->
+  <div class="modal" id="pauseModal" hidden>
+    <div class="sheet">
+      <h2>Paused</h2>
+      <button class="big-btn" id="resumeBtn">Keep going</button>
+      <button class="soft-btn wide" id="restartBtn">Start this stage again</button>
+      <button class="soft-btn wide" id="pauseModeBtn">Switch light or dark</button>
+      <button class="soft-btn wide" id="menuBtn">Back to the start screen</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="modal" id="resultModal" hidden>
+    <div class="sheet result">
+      <div class="result-badge" id="resultBadge"></div>
+      <h2 id="resultTitle">Stage cleared!</h2>
+      <p class="result-sub" id="resultSub"></p>
+      <div class="result-coins">
+        <div class="rc-line"><span>Coins picked up</span><b id="rcPicked">0</b></div>
+        <div class="rc-line" id="rcBonusLine"><span id="rcBonusLabel">Bonus stairs ×1.0</span><b id="rcBonus">0</b></div>
+        <div class="rc-line total"><span>Coins now</span><b id="rcTotal">0</b></div>
+      </div>
+      <p class="tip" id="resultTip"></p>
+      <button class="big-btn" id="nextBtn">Next stage</button>
+      <button class="soft-btn wide" id="resultShopBtn">Upgrades</button>
+    </div>
+  </div>
+
+  <!-- Era change -->
+  <div class="modal" id="eraModal" hidden>
+    <div class="sheet era-sheet">
+      <p class="era-kicker">A new age</p>
+      <h2 id="eraName">Bronze Age</h2>
+      <p id="eraBlurb"></p>
+      <p class="era-bonus">Your band is stronger here: every throw does more damage.</p>
+      <button class="big-btn" id="eraBtn">Onward</button>
+    </div>
+  </div>
+
+  <!-- Shop -->
+  <div class="modal" id="shopModal" hidden>
+    <div class="sheet shop">
+      <div class="sheet-head">
+        <h2>Upgrades</h2>
+        <div class="coin-chip"><span class="coin-ico"></span><span id="shopCoins">0</span></div>
+      </div>
+      <div id="shopList"></div>
+      <button class="big-btn" id="shopDone">Done</button>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="modal" id="settingsModal" hidden>
+    <div class="sheet">
+      <h2>Settings</h2>
+      <div class="set-row"><span>Running pace</span>
+        <div class="seg" id="speedSeg"><button data-v="0">Relaxed</button><button data-v="1">Steady</button><button data-v="2">Brisk</button></div>
+      </div>
+      <div class="set-row"><span>Look</span>
+        <div class="seg" id="themeSeg"><button data-v="light">Daytime</button><button data-v="dark">Dusk</button></div>
+      </div>
+      <div class="set-row"><span>Sound</span>
+        <div class="seg" id="soundSeg"><button data-v="1">On</button><button data-v="0">Off</button></div>
+      </div>
+      <button class="soft-btn wide" id="howBtn">How to play</button>
+      <button class="soft-btn wide quiet" id="resetBtn">Start over from the Stone Age</button>
+      <button class="big-btn" id="settingsDone">Done</button>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div class="modal" id="howModal" hidden>
+    <div class="sheet how">
+      <h2>How to play</h2>
+      <ul>
+        <li><b>Steer</b> by dragging left and right (or the arrow keys). Your band runs and throws on its own.</li>
+        <li><b>Blue gates</b> add travelers or multiply them. <b>Gray gates</b> take some away, but every hit you land on a gray gate raises its number.</li>
+        <li><b>Orange gates</b> make your band throw faster or farther for the rest of the stage.</li>
+        <li><b>Walls</b> show how many hits they can take. If your band runs into one, the travelers at the front push it down, and you lose them.</li>
+        <li><b>Rival bands</b> walk toward you. Knock them over before they reach you.</li>
+        <li><b>Coins</b> drop from walls and crates. Spend them on upgrades between runs.</li>
+        <li>Past the finish, the <b>bonus stairs</b> multiply the coins you picked up.</li>
+        <li>There's no timer and nothing to lose. If your band runs out, you keep your coins and can try again right away.</li>
+      </ul>
+      <button class="big-btn" id="howDone">Got it</button>
+    </div>
+  </div>
+
+  <div class="modal" id="confirmModal" hidden>
+    <div class="sheet">
+      <h2>Start over?</h2>
+      <p>This puts you back at Stone Age, Stage 1 and clears your coins and upgrades.</p>
+      <button class="big-btn" id="confirmNo">Keep my progress</button>
+      <button class="soft-btn wide quiet" id="confirmYes">Yes, start over</button>
+    </div>
+  </div>
+
+  <div id="loading" class="layer"><p>Setting off…</p></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

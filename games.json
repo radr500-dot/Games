@@ -29,6 +29,12 @@
       "name": "Wayfarers",
       "tagline": "Lead your band through the ages.",
       "icon": "wayfarers/icons/icon-192.png"
+    },
+    {
+      "folder": "orchard-bakery",
+      "name": "Orchard Bakery",
+      "tagline": "Pick apples, bake pies, grow your bakery.",
+      "icon": "orchard-bakery/icons/icon-192.png"
     }
   ]
 }

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Orchard Bakery</title>
+  <meta name="description" content="A calm 3D bakery game: pick apples, bake pies, run your shop.">
+  <meta name="theme-color" content="#f3e6d0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Orchard Bakery">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- Start screen (the 3D farm turns slowly behind it) -->
+  <main id="start">
+    <a class="hub-pill" href="../"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>My Games</a>
+    <div class="start-card">
+      <img src="icons/icon-192.png" alt="" class="logo">
+      <h1>Orchard Bakery</h1>
+      <p class="tagline">Pick apples, bake pies, and grow your little country bakery.</p>
+      <button id="playBtn" class="play" disabled>Open the bakery</button>
+      <p id="loading" class="small">Getting the ovens warm…</p>
+      <p class="small how">Drag anywhere to walk (or use the arrow keys). Walk up to things to pick, bake, sell and build. Pinch or scroll to zoom.</p>
+      <button id="resetBtn" class="link">Start a new bakery</button>
+    </div>
+  </main>
+
+  <!-- In-game top bar -->
+  <header id="hud" hidden>
+    <a class="icon-btn hub-link" href="../" aria-label="My Games" title="My Games"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg></a>
+    <div class="pill"><img id="coinIcon" alt=""><span id="coinNum">0</span></div>
+    <div class="pill" id="carryPill"><img id="carryIcon" alt=""><span id="carryNum">0/8</span></div>
+    <span class="grow"></span>
+    <button id="soundBtn" class="icon-btn" aria-label="Sound on"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16 9a4 4 0 0 1 0 6"/><path class="wave" d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="mute" d="M16 9l5 6M21 9l-5 6"/></svg></button>
+    <button id="menuBtn" class="icon-btn" aria-label="Pause" title="Pause"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></svg></button>
+  </header>
+  <div id="hint" hidden></div>
+  <div id="toast"></div>
+  <div id="joy"><div id="knob"></div></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

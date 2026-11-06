@@ -23,6 +23,12 @@
       "name": "Starlit",
       "tagline": "Fill the squares, find the picture.",
       "icon": "starlit/icons/icon-192.png"
+    },
+    {
+      "folder": "wayfarers",
+      "name": "Wayfarers",
+      "tagline": "Lead your band through the ages.",
+      "icon": "wayfarers/icons/icon-192.png"
     }
   ]
 }

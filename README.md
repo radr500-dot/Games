@@ -57,3 +57,4 @@ Home screen: https://radr500-dot.github.io/Games/
 - [Daybreak](daybreak/): balance the suns and moons. Play at https://radr500-dot.github.io/Games/daybreak/
 - [Beach Day](beach-day/): pour the sand until every bottle is one color. Play at https://radr500-dot.github.io/Games/beach-day/
 - [Starlit](starlit/): fill the squares to find the hidden picture. Play at https://radr500-dot.github.io/Games/starlit/
+- [Wayfarers](wayfarers/): a calm 3D runner. Lead your band through seven ages, from the Stone Age to the Space Age. Play at https://radr500-dot.github.io/Games/wayfarers/

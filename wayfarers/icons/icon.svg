@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd3ef"/><stop offset="1" stop-color="#e6f3f2"/></linearGradient></defs>
+  <rect width="512" height="512" fill="url(#s)"/>
+  <circle cx="390" cy="120" r="46" fill="#ffd66b"/>
+  <path d="M0 300 Q130 220 260 280 T512 260 V512 H0Z" fill="#94c47c"/>
+  <path d="M0 340 Q150 290 290 330 T512 320 V512 H0Z" fill="#a9d08e"/>
+  <polygon points="226,300 286,300 420,512 92,512" fill="#ecd9b0"/>
+  <g fill="#d9654b">
+    <g transform="translate(256 430)"><circle cy="-62" r="20"/><rect x="-21" y="-44" width="42" height="56" rx="18"/></g>
+    <g transform="translate(200 452)"><circle cy="-62" r="20"/><rect x="-21" y="-44" width="42" height="56" rx="18"/></g>
+    <g transform="translate(312 452)"><circle cy="-62" r="20"/><rect x="-21" y="-44" width="42" height="56" rx="18"/></g>
+  </g>
+  <g fill="#f2c9a0"><circle cx="256" cy="368" r="16"/><circle cx="200" cy="390" r="16"/><circle cx="312" cy="390" r="16"/></g>
+  <rect x="150" y="210" width="90" height="62" rx="12" fill="#2b6fb3" opacity=".92"/>
+  <text x="195" y="254" font-family="Arial, Helvetica" font-weight="900" font-size="40" fill="#fff" text-anchor="middle">+5</text>
+  <rect x="272" y="210" width="90" height="62" rx="12" fill="#8a817a" opacity=".85"/>
+  <text x="317" y="254" font-family="Arial, Helvetica" font-weight="900" font-size="40" fill="#fff" text-anchor="middle">×2</text>
+</svg>

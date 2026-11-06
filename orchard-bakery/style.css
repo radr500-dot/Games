@@ -133,3 +133,17 @@ h3 { margin: 16px 0 8px; font-size: 15px; text-transform: uppercase; letter-spac
   #goalsBtn, #soundBtn { display: none; }
   .sound-row { display: block; }
 }
+
+/* what's on your tray */
+#carryList {
+  position: fixed; left: calc(12px + env(safe-area-inset-left)); bottom: calc(16px + env(safe-area-inset-bottom));
+  display: flex; flex-wrap: wrap; gap: 6px; max-width: min(70vw, 460px); pointer-events: none;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px 0 4px; border-radius: 999px;
+  background: var(--card); box-shadow: var(--shadow); font-weight: 800; font-size: 17px; font-variant-numeric: tabular-nums;
+}
+.chip img { width: 32px; height: 32px; }
+.chip small { font-weight: 600; font-size: 13px; color: var(--ink-soft); margin-left: 2px; }
+.chip.done { background: #dcebc9; color: var(--green); padding: 0 14px; }
+@media (max-width: 480px) { .chip small { display: none; } }

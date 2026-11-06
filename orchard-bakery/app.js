@@ -639,6 +639,19 @@ function moveActor(a, dt) {
 }
 
 // ---------- interactions ----------
+// You only pick up from (or load into) a spot once you pause on it, so walking past never grabs things.
+// The stall and the coin barrel stay instant, since you always want those.
+const dwell = {};
+function updateDwell(dt) {
+  const slow = Math.hypot(player.vel.x, player.vel.z) < 2.2;
+  for (const name of Object.keys(zones)) {
+    const z = zones[name], inside = z.mesh.visible !== false && player.obj.position.distanceTo(z.pos) < z.r;
+    dwell[name] = inside && slow ? (dwell[name] || 0) + dt : inside ? Math.max(0, (dwell[name] || 0) - dt) : 0;
+    const want = dwell[name] >= SETTLE ? 1.12 : 1; z.mesh.scale.setScalar(z.mesh.scale.x + (want - z.mesh.scale.x) * Math.min(1, dt * 10));
+  }
+}
+const SETTLE = 0.3;
+const settled = (a, z) => a !== player || (dwell[z] || 0) >= SETTLE;
 function near(a, z) { return zones[z] && a.obj.position.distanceTo(zones[z].pos) < zones[z].r; }
 function interact(a, dt, allowed, helper = false) {
   a.cool -= dt; if (a.cool > 0) return;
@@ -665,12 +678,12 @@ function interact(a, dt, allowed, helper = false) {
     }
   }
   const drop = (zone, kind, pileName) => {
-    if (!can(zone) || !near(a, zone) || piles[pileName].count >= (helper ? HELPER_FILL : maxp(pileName))) return false;
+    if (!can(zone) || !near(a, zone) || (zone !== 'stallIn' && !settled(a, zone)) || piles[pileName].count >= (helper ? HELPER_FILL : maxp(pileName))) return false;
     const it = a.carry.take(kind); if (!it) return false;
     scene.remove(it.mesh); piles[pileName].add(kind, it.wp, 0.28); a.cool = 0.08; if (a === player) sfx.pick(); return true;
   };
   const takeFrom = (zone, pileName) => {
-    if (!can(zone) || !near(a, zone) || a.carry.count >= a.cap) return false;
+    if (!can(zone) || !near(a, zone) || !settled(a, zone) || a.carry.count >= a.cap) return false;
     const it = piles[pileName].take(); if (!it) return false;
     scene.remove(it.mesh); a.carry.add(it.kind, it.wp, 0.28); a.cool = 0.08; if (a === player) sfx.pick(); return true;
   };
@@ -680,7 +693,7 @@ function interact(a, dt, allowed, helper = false) {
   for (const z of Object.keys(PRODUCERS)) if (S.unlocked[PRODUCERS[z].need] && (a === player || can(z)) && takeFrom(z, z)) return;
   if (a !== player) return;
   // the order wagon takes whatever the current order still needs
-  if (S.unlocked.wagon && S.order && near(a, 'order')) {
+  if (S.unlocked.wagon && S.order && near(a, 'order') && settled(a, 'order')) {
     for (const k of Object.keys(S.order.items)) {
       if ((S.order.got[k] || 0) >= S.order.items[k]) continue;
       const it = a.carry.take(k); if (!it) continue;
@@ -691,7 +704,7 @@ function interact(a, dt, allowed, helper = false) {
     }
   }
   // sell spare raw goods at the farm cart, so a full tray never leaves you stuck
-  if (near(a, 'cart')) {
+  if (near(a, 'cart') && settled(a, 'cart')) {
     let it = null; for (const k of Object.keys(SPARE)) { it = a.carry.take(k); if (it) break; }
     if (it) { const v = SPARE[it.kind]; scene.remove(it.mesh); fly(it.mesh, it.wp, null, zones.cart.pos.clone().add(new V3(0, 0.8, -1.05)), 0.25, () => { S.coins += v; S.stats.earned += v; sfx.coin(); }, 0.6); a.cool = 0.07; return; }
   }
@@ -885,7 +898,24 @@ function updateHud(dt) {
   $('coinNum').textContent = Math.round(shownCoins);
   $('carryNum').textContent = `${player.carry.count}/${player.cap}`;
   $('carryPill').classList.toggle('full', player.carry.count >= player.cap);
+  updateCarryList(dt);
   $('lvNum').textContent = S.level; $('xpFill').style.width = `${Math.min(100, S.xp / xpNeed(S.level) * 100)}%`;
+}
+// What's on your tray, as little picture chips, plus a note when you've set everything down.
+let carryKey = '', lastCount = 0, emptyT = 0;
+function updateCarryList(dt) {
+  const counts = {};
+  for (const it of player.carry.items) counts[it.kind] = (counts[it.kind] || 0) + 1;
+  const n = player.carry.count;
+  if (lastCount > 0 && n === 0) emptyT = 2.2;
+  lastCount = n; emptyT -= dt;
+  const key = n ? Object.entries(counts).map(([k, c]) => k + c).join() : emptyT > 0 ? 'empty' : '';
+  if (key === carryKey) return; carryKey = key;
+  const el = $('carryList');
+  if (n) el.innerHTML = Object.entries(counts).map(([k, c]) => `<span class="chip"><img src="${ICON[k] || ''}" alt="">${c}<small>${NAMES[k] || k}</small></span>`).join('');
+  else if (emptyT > 0) el.innerHTML = '<span class="chip done">✓ Tray empty</span>';
+  else el.innerHTML = '';
+  el.hidden = !el.innerHTML || !playing;
 }
 // A gentle "what next" hint with a bouncing marker, so you never feel lost.
 const marker = new THREE.Group();
@@ -1078,6 +1108,14 @@ function updateWorld(dt, t) {
     for (const c of world.field.cells) if (c.grow < 1) { c.grow = Math.min(1, c.grow + dt * rate); fieldDirty = true; }
     if (fieldDirty) { updateFieldInstances(world.field); fieldDirty = false; }
   }
+  { // see through the stall awning while you stand behind the counter
+    const behind = playing && Math.abs(pp.x - SPOTS.stall.x) < 2.8 && pp.z < SPOTS.stall.z && pp.z > SPOTS.stall.z - 3.2;
+    for (const m of world.stall.userData.fadeMats) {
+      const o = m.opacity + ((behind ? 0.18 : 1) - m.opacity) * Math.min(1, dt * 8), tp = o < 0.99;
+      if (m.transparent !== tp) { m.transparent = tp; m.depthWrite = !tp; m.needsUpdate = true; }
+      m.opacity = tp ? o : 1;
+    }
+  }
   for (const p of Object.values(pads)) if (p.mesh.scale.x < 1) p.mesh.scale.setScalar(Math.min(1, p.mesh.scale.x + dt * 4));
   world.wind.value = t;
 }
@@ -1099,6 +1137,7 @@ function update(dt, t) {
     const accel = (ix || iy) ? 10 : 12;
     player.vel.lerp(want, 1 - Math.exp(-accel * dt));
     moveActor(player, dt);
+    updateDwell(dt);
     interact(player, dt);
     updateCamera(dt);
     updateHint(dt, !!(ix || iy));
@@ -1182,11 +1221,11 @@ function setSoundBtn() { $('panelSound').textContent = S.sound ? 'Sound: on' : '
 $('panelSound').addEventListener('click', () => $('soundBtn').click());
 $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; setSoundBtn(); save(); if (S.sound) tone(660, 0.1); });
 $('playBtn').addEventListener('click', () => {
-  playing = true; $('start').hidden = true; $('hud').hidden = false; $('hint').hidden = false;
+  playing = true; $('start').hidden = true; $('hud').hidden = false; $('hint').hidden = false; carryKey = '-';
   updateCamera(0, true); camPos.copy(camera.position);
   if (S.sound) { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { /* ignore */ } }
 });
-$('menuBtn').addEventListener('click', () => { save(); playing = false; $('panel').hidden = true; $('start').hidden = false; $('hud').hidden = true; $('hint').hidden = true; joy.active = false; $('joy').classList.remove('on'); setPlayLabel(); });
+$('menuBtn').addEventListener('click', () => { save(); playing = false; $('panel').hidden = true; $('carryList').hidden = true; $('start').hidden = false; $('hud').hidden = true; $('hint').hidden = true; joy.active = false; $('joy').classList.remove('on'); setPlayLabel(); });
 $('resetBtn').addEventListener('click', () => {
   if (!confirm('Start a brand new bakery? Your coins and buildings will be cleared.')) return;
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }

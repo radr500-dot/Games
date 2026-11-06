@@ -3,7 +3,8 @@
 A calm 3D bakery game. Walk your baker around a little country farm, pick apples and wheat,
 bake pies and bread in wood-fired ovens, set them out on the market stall, and collect the
 coins your customers leave. Spend coins to grow the bakery: more apple trees, a bigger tray,
-a wheat field, a bread oven, a tea garden, a flower garden and two helpers.
+a wheat field, a bread oven, a jam kitchen, hotter ovens, road signs, better prices, a tea garden,
+a flower garden and four helpers (20 upgrades in all, three on offer at a time).
 
 There are no timers, no lives and nothing to fail. Progress saves on its own, so you can stop any time.
 
@@ -18,6 +19,7 @@ Play at https://radr500-dot.github.io/Games/orchard-bakery/
 - **Bake:** stand on the "Apples in" circle by the oven. Pies come out on the table next to it.
 - **Sell:** carry the pies to the "Stall" circle behind the market stall. Customers come up the road and buy them.
 - **Collect:** stand on the "Coins" circle by the barrel.
+- **Too much in your hands?** Sell spare apples or wheat at the farm cart ("Sell extras"), 1 coin each. Helpers always leave room in the baskets for you.
 - **Build:** stand on a building spot until it's paid for.
 - The note at the top always says what to do next, and a gold arrow shows the way if you stand still for a moment.
 

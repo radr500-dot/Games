@@ -13,11 +13,11 @@ export const HOME = { minX: -16.2, maxX: 16.2 }; // the first plot; the east and
 export const PATHS = [ // [x1,z1,x2,z2,width]
   [0, 18, 0, 6.4, 2.0], [0, 4.2, 0, -8.6, 2.0],
   [0, 1.2, -6, 1.2, 1.6], [0, 1.2, 6.2, 1.2, 1.6],
-  [0, -5, -4.4, -5, 1.8], [0, -5, 4.4, -5, 1.8],
-  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-4.4, -5, -9.6, -6.6, 1.6], [-3.2, 1.2, -3.2, -0.2, 1.4],
+  [0, -3.0, -5.2, -3.0, 1.6], [0, -3.0, 5.2, -3.0, 1.6],
+  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-5.2, -3.0, -9.6, -5.4, 1.4], [-3.2, 1.2, -3.2, -0.6, 1.2],
   ...FARM_PATHS
 ];
-export const PLAZAS = [[0, -5.6, 3.2], [0, 4.9, 2.4]];
+export const PLAZAS = [[0, -6.2, 1.6], [0, 4.9, 2.4]];
 export function pathAmount(x, z) { // 0 = grass, 1 = path
   let d = Infinity;
   for (const [x1, z1, x2, z2, w] of PATHS) {
@@ -36,7 +36,7 @@ export const SPOTS = {
   stall: new THREE.Vector3(0, 0, 5.6), stallIn: new THREE.Vector3(0, 0, 4.1), cash: new THREE.Vector3(2.5, 0, 4.4),
   gate: new THREE.Vector3(0, 0, 17),
   jamKitchen: new THREE.Vector3(-9.6, 0, -9.4), jamIn: new THREE.Vector3(-10.9, 0, -7.2), jamOut: new THREE.Vector3(-8.3, 0, -7.2),
-  jamTable: new THREE.Vector3(-2.45, 0, 5.6), cart: new THREE.Vector3(-3.2, 0, -0.4),
+  jamTable: new THREE.Vector3(-2.45, 0, 5.6), cart: new THREE.Vector3(-3.2, 0, -1.0),
   ...FARM_SPOTS
 };
 export const TREE_SPOTS = {
@@ -458,12 +458,15 @@ function makeStall() {
   for (const x of [-1, 1]) g.add(mesh(at(new THREE.CylinderGeometry(0.05, 0.06, 2.6, 8), x * (W / 2 - 0.05), 1.3, -D / 2 - 0.1), m.woodDark));
   for (const x of [-1, 1]) g.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 0.95, 6), x * (W / 2 - 0.05), 2.3, -0.16, 1.05, 0, 0), m.woodDark));
   const tilt = 0.5, AD = 1.1;
-  const awn = mesh(at(new THREE.PlaneGeometry(W + 0.5, AD), 0, 2.6 - Math.sin(tilt) * AD / 2, -D / 2 - 0.1 + Math.cos(tilt) * AD / 2, -Math.PI / 2 + tilt), m.awning); g.add(awn);
+  // the awning fades when you stand behind the stall, so you can always see your tray
+  const awnMat = m.awning.clone(), valMat = new THREE.MeshStandardMaterial({ color: 0xc8553d, roughness: 0.85, side: THREE.DoubleSide });
+  const awn = mesh(at(new THREE.PlaneGeometry(W + 0.5, AD), 0, 2.6 - Math.sin(tilt) * AD / 2, -D / 2 - 0.1 + Math.cos(tilt) * AD / 2, -Math.PI / 2 + tilt), awnMat); g.add(awn);
+  g.userData.fadeMats = [awnMat, valMat];
   const fz = -D / 2 - 0.1 + Math.cos(tilt) * AD, fy = 2.6 - Math.sin(tilt) * AD;
   // scalloped valance along the front edge
   const sc = new THREE.Shape(); sc.moveTo(-(W + 0.5) / 2, 0); sc.lineTo((W + 0.5) / 2, 0);
   const n = 12; for (let i = n; i >= 0; i--) { const x = -(W + 0.5) / 2 + i * (W + 0.5) / n; sc.lineTo(x, -0.2); if (i > 0) sc.quadraticCurveTo(x - (W + 0.5) / n / 2, -0.05, x - (W + 0.5) / n, -0.2); }
-  g.add(mesh(at(new THREE.ShapeGeometry(sc), 0, fy, fz), new THREE.MeshStandardMaterial({ color: 0xc8553d, roughness: 0.85, side: THREE.DoubleSide })));
+  g.add(mesh(at(new THREE.ShapeGeometry(sc), 0, fy, fz), valMat));
   // board sign on the front of the counter
   g.add(mesh(at(new THREE.PlaneGeometry(1.2, 0.37), 0, H - 0.27, D / 2 + 0.05), new THREE.MeshStandardMaterial({ map: signTex('Fresh', '#7a4a2e'), roughness: 0.6 }), false));
   // baskets and crates for flavour
@@ -716,7 +719,7 @@ export function buildWorld(scene) {
   });
 
   return {
-    colliders, trees, treeGroups, farm, dividers, field, tea, flowers, bakery, jamGroup, jamKitchen, signpost, bunting, pieOven, breadOven, breadGroup,
+    colliders, trees, treeGroups, farm, dividers, stall, field, tea, flowers, bakery, jamGroup, jamKitchen, signpost, bunting, pieOven, breadOven, breadGroup,
     anchors: {
       pieIn: pieInBasket.position.clone().add(new THREE.Vector3(0, 0.25, 0)),
       pieOut: pieTable.position.clone().add(new THREE.Vector3(0, 0.83, 0)),

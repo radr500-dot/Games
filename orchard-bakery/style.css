@@ -90,3 +90,46 @@ h1 { margin: 12px 0 4px; font-size: 32px; letter-spacing: -.01em; color: #5a2a1c
   position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%; transform: translate(-50%, -50%);
   background: rgba(255, 255, 255, .92); box-shadow: 0 3px 10px rgba(60, 40, 20, .25);
 }
+
+/* level pill, goals button and panel */
+.lv-pill { border: 0; gap: 6px; padding: 0 12px 0 10px; color: var(--ink); font: inherit; font-weight: 800; font-size: 17px; }
+.lv-pill .star { color: var(--honey); font-size: 20px; }
+.xpbar { width: 38px; height: 7px; border-radius: 9px; background: rgba(59, 47, 36, .14); overflow: hidden; display: inline-block; }
+.xpbar i, .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--honey), #f2c94c); border-radius: 9px; transition: width .3s; }
+#goalsBtn { position: relative; }
+.dot { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--red); border: 2px solid var(--paper); }
+#panel { position: fixed; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: calc(62px + env(safe-area-inset-top)) 16px 16px; background: rgba(59, 47, 36, .18); }
+.panel-card { width: min(440px, 100%); max-height: 100%; overflow-y: auto; background: var(--paper); border-radius: 24px; padding: 14px 18px 18px; box-shadow: var(--shadow); -webkit-overflow-scrolling: touch; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; }
+.panel-head .icon-btn { box-shadow: none; background: rgba(59, 47, 36, .06); }
+h2 { margin: 0; font-size: 22px; color: #5a2a1c; }
+h3 { margin: 16px 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.lv-row { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
+.lv-badge { flex: none; width: 62px; height: 62px; border-radius: 18px; background: var(--honey); color: #3b2a10; font-weight: 900; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+.lv-text { flex: 1; }
+.lv-text small { color: var(--ink-soft); font-size: 13px; }
+.bar { height: 10px; border-radius: 9px; background: rgba(59, 47, 36, .12); overflow: hidden; margin: 6px 0 4px; }
+.tasks, .next { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tasks li { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; background: var(--cream); border-radius: 16px; padding: 8px 12px 8px 8px; }
+.tasks img, .next img, .order-box img { width: 40px; height: 40px; }
+.tasks b { font-size: 15px; display: block; line-height: 1.25; }
+.tasks .bar { margin: 5px 0 0; height: 8px; }
+.reward { font-weight: 800; font-size: 14px; color: #7a5410; white-space: nowrap; text-align: right; }
+.reward small { display: block; font-weight: 600; color: var(--ink-soft); }
+.order-box { background: var(--cream); border-radius: 16px; padding: 10px 12px; font-size: 15px; line-height: 1.35; }
+.order-items { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0; }
+.order-items span { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
+.order-items .done { color: var(--green); }
+.next li { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.next small { color: var(--ink-soft); display: block; }
+.sound-row { display: none; margin-top: 16px; width: 100%; height: 44px; border: 0; border-radius: 14px; background: var(--cream); font-weight: 700; }
+@media (max-width: 480px) {
+  #hud { gap: 6px; }
+  .pill { height: 40px; font-size: 16px; padding: 0 10px 0 4px; }
+  .pill img { width: 30px; height: 30px; }
+  .lv-pill { padding: 0 10px; }
+  .lv-pill .xpbar { display: none; }
+  .icon-btn { width: 40px; height: 40px; }
+  #goalsBtn, #soundBtn { display: none; }
+  .sound-row { display: block; }
+}

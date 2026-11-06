@@ -38,11 +38,23 @@
     <a class="icon-btn hub-link" href="../" aria-label="My Games" title="My Games"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg></a>
     <div class="pill"><img id="coinIcon" alt=""><span id="coinNum">0</span></div>
     <div class="pill" id="carryPill"><img id="carryIcon" alt=""><span id="carryNum">0/8</span></div>
+    <button class="pill lv-pill" id="lvPill" aria-label="Bakery level and goals"><span class="star">★</span><span id="lvNum">1</span><span class="xpbar"><i id="xpFill"></i></span></button>
     <span class="grow"></span>
+    <button id="goalsBtn" class="icon-btn" aria-label="Goals" title="Goals"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M8.5 12l2 2 4-4"/><path d="M8.5 17h7"/></svg><span id="goalsDot" class="dot" hidden></span></button>
     <button id="soundBtn" class="icon-btn" aria-label="Sound on"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16 9a4 4 0 0 1 0 6"/><path class="wave" d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="mute" d="M16 9l5 6M21 9l-5 6"/></svg></button>
     <button id="menuBtn" class="icon-btn" aria-label="Pause" title="Pause"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></svg></button>
   </header>
   <div id="hint" hidden></div>
+  <section id="panel" hidden aria-label="Goals">
+    <div class="panel-card">
+      <div class="panel-head"><h2>Your bakery</h2><button id="panelClose" class="icon-btn" aria-label="Close"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="lv-row"><div class="lv-badge">★ <span id="pLv">1</span></div><div class="lv-text"><b id="pLvTitle">Bakery level 1</b><div class="bar"><i id="pXp"></i></div><small id="pXpText"></small></div></div>
+      <h3>Tasks</h3><ul id="taskList" class="tasks"></ul>
+      <h3>Order wagon</h3><div id="orderBox" class="order-box"></div>
+      <h3>Coming up</h3><ul id="nextList" class="next"></ul>
+      <button id="panelSound" class="sound-row">Sound: on</button>
+    </div>
+  </section>
   <div id="toast"></div>
   <div id="joy"><div id="knob"></div></div>
 

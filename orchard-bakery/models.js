@@ -322,6 +322,7 @@ export function makeItem(kind) {
   if (kind === 'bread') return makeBread();
   if (kind === 'wheat') return makeWheatBundle();
   if (kind === 'coin') return makeCoin();
+  if (kind === 'jam') return makeJam();
 }
 // How items stack in hands, on tables and on shelves: [height, per layer, spacing]
 export const STACK = { apple: [0.24, 3, 0.2], pie: [0.105, 1, 0], bread: [0.2, 2, 0.24], wheat: [0.13, 2, 0.2] };
@@ -488,5 +489,40 @@ export function makeUmbrella(color = 0xc8553d) {
   const can = new THREE.ConeGeometry(1.25, 0.42, 12, 1, true).toNonIndexed();
   paintFaces(can, (x, y, z, c) => { const a = Math.atan2(z, x); c.set(Math.floor((a + Math.PI) / (Math.PI * 2) * 12 + 0.5) % 2 ? color : 0xfbf1df); });
   g.add(mesh(at(can, 0, 2.2, 0), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: THREE.DoubleSide })));
+  return g;
+}
+
+// ---------- jam ----------
+function gingham() {
+  if (TEX.gingham) return TEX.gingham;
+  TEX.gingham = canvasTex(64, 64, (c, w, h) => {
+    c.fillStyle = '#fbf3e6'; c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(200,85,61,.55)';
+    for (let i = 0; i < 4; i++) { c.fillRect(i * 16, 0, 8, h); c.fillRect(0, i * 16, w, 8); }
+  }, [2, 2]);
+  return TEX.gingham;
+}
+export function makeJam() {
+  if (!GEO.jar) {
+    const prof = [[0, 0], [0.085, 0], [0.095, 0.012], [0.095, 0.15], [0.08, 0.17], [0.075, 0.19]].map(([r, y]) => new THREE.Vector2(r, y));
+    GEO.jar = new THREE.LatheGeometry(prof, 28);
+    GEO.jamFill = new THREE.CylinderGeometry(0.088, 0.088, 0.14, 24); GEO.jamFill.translate(0, 0.08, 0);
+    const lid = new THREE.CylinderGeometry(0.115, 0.13, 0.035, 24, 1, false);
+    displace(lid, (v) => { if (v.y < 0) { const a = Math.atan2(v.z, v.x); v.y -= 0.02 + Math.max(0, Math.sin(a * 8)) * 0.02; } });
+    lid.translate(0, 0.205, 0); GEO.lid = lid;
+    GEO.band = at(new THREE.TorusGeometry(0.081, 0.006, 6, 24), 0, 0.185, 0, Math.PI / 2);
+    GEO.label = new THREE.CylinderGeometry(0.0965, 0.0965, 0.05, 24, 1, true, -0.9, 1.8); GEO.label.translate(0, 0.08, 0);
+  }
+  if (!MAT.jarGlass) {
+    MAT.jarGlass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.28, clearcoat: 1, depthWrite: false });
+    MAT.jam = new THREE.MeshPhysicalMaterial({ color: 0x8e1a1f, roughness: 0.25, clearcoat: 0.6, sheen: 0.2 });
+    MAT.lid = new THREE.MeshStandardMaterial({ map: gingham(), roughness: 0.9 });
+    MAT.string = new THREE.MeshStandardMaterial({ color: 0xd9c49a, roughness: 0.9 });
+    MAT.label = new THREE.MeshStandardMaterial({ color: 0xf6ecd6, roughness: 0.8 });
+  }
+  const g = new THREE.Group();
+  g.add(mesh(GEO.jamFill, MAT.jam)); g.add(mesh(GEO.jar, MAT.jarGlass, false, false));
+  g.add(mesh(GEO.label, MAT.label, false)); g.add(mesh(GEO.lid, MAT.lid)); g.add(mesh(GEO.band, MAT.string, false));
+  g.userData.kind = 'jam';
   return g;
 }

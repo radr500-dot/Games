@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeVertices } from './vendor/BufferGeometryUtils.js';
 import {
   rand, fbm, noise3, paint, paintFaces, displace, at, mesh, merge, canvasTex, speckle, mats, wheatStalkGeo,
-  makeApple, makeBasket, makeBarrel, makeCrate, makeTable, makeChair, makeLamp, makeBench, makeUmbrella, makePerson
+  makeApple, makeJam, makeBasket, makeBarrel, makeCrate, makeTable, makeChair, makeLamp, makeBench, makeUmbrella, makePerson
 } from './models.js';
 
 // ---------- layout ----------
@@ -12,7 +12,7 @@ export const PATHS = [ // [x1,z1,x2,z2,width]
   [0, 18, 0, 6.4, 2.0], [0, 4.2, 0, -8.6, 2.0],
   [0, 1.2, -6, 1.2, 1.6], [0, 1.2, 6.2, 1.2, 1.6],
   [0, -5, -4.4, -5, 1.8], [0, -5, 4.4, -5, 1.8],
-  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2]
+  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-4.4, -5, -9.6, -6.6, 1.6], [-3.2, 1.2, -3.2, -0.2, 1.4]
 ];
 export const PLAZAS = [[0, -5.6, 3.2], [0, 4.9, 2.4]];
 export function pathAmount(x, z) { // 0 = grass, 1 = path
@@ -31,7 +31,9 @@ export const SPOTS = {
   pieIn: new THREE.Vector3(-5.6, 0, -4.7), pieOut: new THREE.Vector3(-3.1, 0, -4.7),
   breadIn: new THREE.Vector3(3.1, 0, -4.7), breadOut: new THREE.Vector3(5.6, 0, -4.7),
   stall: new THREE.Vector3(0, 0, 5.6), stallIn: new THREE.Vector3(0, 0, 4.1), cash: new THREE.Vector3(2.5, 0, 4.4),
-  gate: new THREE.Vector3(0, 0, 17)
+  gate: new THREE.Vector3(0, 0, 17),
+  jamKitchen: new THREE.Vector3(-9.6, 0, -9.4), jamIn: new THREE.Vector3(-10.9, 0, -7.2), jamOut: new THREE.Vector3(-8.3, 0, -7.2),
+  jamTable: new THREE.Vector3(-2.45, 0, 5.6), cart: new THREE.Vector3(-3.2, 0, -0.4)
 };
 export const TREE_SPOTS = {
   start: [[-7.4, -1.6], [-10.4, -1.6], [-7.4, 2.0], [-10.4, 2.0]],
@@ -44,15 +46,25 @@ export const PADS = {
   trees2: { pos: [-4.8, 4.3], cost: 15, name: 'More apple trees', icon: 'tree' },
   basket: { pos: [-2.6, 2.6], cost: 25, name: 'Bigger tray', icon: 'tray' },
   wheat: { pos: [5.0, 3.3], cost: 40, name: 'Wheat field', icon: 'wheat' },
+  sign1: { pos: [2.6, 12.6], cost: 35, name: 'Road sign', icon: 'sign' },
   bread: { pos: [4.4, -4.6], cost: 60, name: 'Bread oven', icon: 'bread', req: 'wheat' },
+  oven1: { pos: [0, -7.0], cost: 60, name: 'Hotter ovens', icon: 'fire' },
+  jam: { pos: [-9.6, -7.2], cost: 90, name: 'Jam kitchen', icon: 'jam', req: 'trees2' },
   tea: { pos: [4.4, 8.2], cost: 80, name: 'Tea garden', icon: 'tea' },
   helper: { pos: [-4.4, 7.4], cost: 110, name: 'Orchard helper', icon: 'helper', req: 'trees2' },
   flowers: { pos: [-3.4, 10.6], cost: 60, name: 'Flower garden', icon: 'flower' },
+  price1: { pos: [2.8, -1.6], cost: 100, name: 'Fancy pie tins', icon: 'pie' },
+  barrow: { pos: [-2.6, 2.6], cost: 120, name: 'Big wooden tray', icon: 'tray', req: 'basket' },
   runner: { pos: [-1.9, -2.6], cost: 140, name: 'Shop helper', icon: 'runner', req: 'bread' },
-  barrow: { pos: [2.8, -1.6], cost: 120, name: 'Big wooden tray', icon: 'tray', req: 'basket' },
-  orchard3: { pos: [-4.8, -2.2], cost: 150, name: 'Orchard corner', icon: 'tree', req: 'trees2' }
+  sign2: { pos: [2.6, 12.6], cost: 140, name: 'Village bunting', icon: 'sign', req: 'sign1' },
+  orchard3: { pos: [-4.8, -2.2], cost: 150, name: 'Orchard corner', icon: 'tree', req: 'trees2' },
+  oven2: { pos: [0, -7.0], cost: 180, name: 'Even hotter ovens', icon: 'fire', req: 'oven1' },
+  helper2: { pos: [5.0, 3.3], cost: 170, name: 'Field helper', icon: 'helper', req: 'bread' },
+  price2: { pos: [2.8, -1.6], cost: 160, name: 'Honey glaze', icon: 'jam', req: 'price1' },
+  stall2: { pos: [-2.6, 2.6], cost: 130, name: 'Bigger stall', icon: 'bread', req: 'barrow' },
+  helper3: { pos: [-4.8, 4.3], cost: 220, name: 'Second orchard helper', icon: 'helper', req: 'helper' }
 };
-export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'bread', 'tea', 'helper', 'flowers', 'runner', 'barrow', 'orchard3'];
+export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'bread', 'oven1', 'jam', 'tea', 'helper', 'flowers', 'price1', 'barrow', 'runner', 'sign2', 'orchard3', 'oven2', 'helper2', 'price2', 'stall2', 'helper3'];
 
 // ---------- sky + ground ----------
 function makeSky(scene) {
@@ -512,6 +524,78 @@ function makeFlowerGarden() {
   return g;
 }
 
+function makeJamKitchen() {
+  // An open-sided wooden shelter over a stone stove with a big copper jam pot.
+  const g = new THREE.Group(), m = mats();
+  for (const [x, z] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9], [1.3, 0.9]]) g.add(mesh(at(new THREE.BoxGeometry(0.14, 2.3, 0.14), x, 1.15, z), m.beam));
+  const roof = shingleRoof(2.9, 2.0, 0.8, 0x8a5a3c); roof.position.y = 2.3; g.add(roof);
+  g.add(mesh(at(new THREE.BoxGeometry(1.7, 0.75, 1.1), 0, 0.37, -0.2), m.stone));
+  g.add(mesh(at(new THREE.CircleGeometry(0.2, 16, 0, Math.PI), 0, 0.3, 0.36), m.dark, false));
+  const fire = new THREE.Group(); fire.position.set(0, 0.25, 0.25); g.add(fire);
+  for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 6), i % 2 ? m.fire : m.ember); f.position.set((i - 1) * 0.07, 0.05, 0); fire.add(f); }
+  const copper = new THREE.MeshStandardMaterial({ color: 0xc8744a, metalness: 0.9, roughness: 0.3 });
+  const pot = new THREE.LatheGeometry([[0, 0], [0.32, 0.02], [0.42, 0.12], [0.45, 0.32], [0.47, 0.36], [0.44, 0.36]].map(([r, y]) => new THREE.Vector2(r, y)), 32);
+  g.add(mesh(at(pot, 0, 0.75, -0.2), copper));
+  g.add(mesh(at(new THREE.CircleGeometry(0.43, 28), 0, 1.06, -0.2, -Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x7e161b, roughness: 0.2, clearcoat: 0.8 }), false));
+  g.add(mesh(at(new THREE.CylinderGeometry(0.02, 0.02, 0.8, 6), 0.15, 1.3, -0.2, 0, 0, 0.5), m.wood));
+  // shelf of finished jars at the back
+  g.add(mesh(at(new THREE.BoxGeometry(2.4, 0.05, 0.35), 0, 1.3, -0.85), m.wood));
+  for (let i = 0; i < 8; i++) { const j = makeJam(); j.position.set(-1.0 + i * 0.28, 1.33, -0.85); j.scale.setScalar(0.9); g.add(j); }
+  const b = makeBarrel(); b.position.set(1.6, 0, -0.6); b.scale.setScalar(0.8); g.add(b);
+  g.add(mesh(at(new THREE.PlaneGeometry(1.6, 0.5), 0, 2.15, 1.02), new THREE.MeshStandardMaterial({ map: signTex('Jam', '#7a2a2a'), roughness: 0.6 }), false));
+  g.userData = { fire, smokeAt: new THREE.Vector3(0, 1.4, -0.2) };
+  return g;
+}
+function makeCart() {
+  // A little farm cart for selling spare fruit and grain.
+  const g = new THREE.Group(), m = mats();
+  g.add(mesh(at(new THREE.BoxGeometry(1.5, 0.08, 0.95), 0, 0.62, 0), m.wood));
+  for (const z of [-0.47, 0.47]) g.add(mesh(at(new THREE.BoxGeometry(1.5, 0.32, 0.05), 0, 0.8, z), m.wood));
+  for (const x of [-0.73, 0.73]) g.add(mesh(at(new THREE.BoxGeometry(0.05, 0.32, 0.95), x, 0.8, 0), m.wood));
+  for (const z of [-0.56, 0.56]) {
+    const wheel = mesh(at(new THREE.TorusGeometry(0.36, 0.045, 8, 24), -0.15, 0.38, z), m.woodDark); g.add(wheel);
+    for (let i = 0; i < 6; i++) g.add(mesh(at(new THREE.BoxGeometry(0.04, 0.68, 0.03), -0.15, 0.38, z, 0, 0, i * Math.PI / 6), m.woodDark));
+  }
+  for (const z of [-0.3, 0.3]) g.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), 1.25, 0.55, z, 0, 0, Math.PI / 2 - 0.25), m.wood));
+  g.add(mesh(at(new THREE.BoxGeometry(0.07, 0.62, 0.07), -0.65, 0.31, 0), m.woodDark));
+  // a few apples and a sheaf already in it
+  for (let i = 0; i < 5; i++) { const a = makeApple(false); a.position.set(-0.4 + i * 0.16, 0.8, -0.2 + (i % 2) * 0.18); a.scale.setScalar(0.8); g.add(a); }
+  const chalk = canvasTex(256, 128, (c, w, h) => { c.fillStyle = '#2f3a33'; c.fillRect(0, 0, w, h); c.strokeStyle = '#a77b52'; c.lineWidth = 12; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#f4efe2'; c.font = 'bold 40px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Spare fruit', w / 2, h / 2 - 18); c.font = 'bold 30px Georgia, serif'; c.fillText('1 coin each', w / 2, h / 2 + 26); });
+  g.add(mesh(at(new THREE.PlaneGeometry(0.9, 0.45), 0, 1.2, 0.5, -0.15), new THREE.MeshStandardMaterial({ map: chalk, roughness: 0.9 }), false));
+  g.add(mesh(at(new THREE.BoxGeometry(0.04, 0.45, 0.04), 0, 0.95, 0.48), m.woodDark));
+  return g;
+}
+function makeSignpost() {
+  const g = new THREE.Group(), m = mats();
+  g.add(mesh(at(new THREE.BoxGeometry(0.14, 2.2, 0.14), 0, 1.1, 0), m.woodDark));
+  const arrow = new THREE.Shape(); arrow.moveTo(-0.7, -0.2); arrow.lineTo(0.5, -0.2); arrow.lineTo(0.75, 0); arrow.lineTo(0.5, 0.2); arrow.lineTo(-0.7, 0.2); arrow.lineTo(-0.7, -0.2);
+  const ag = new THREE.ExtrudeGeometry(arrow, { depth: 0.05, bevelEnabled: false });
+  const sm = new THREE.MeshStandardMaterial({ map: signTex('Bakery', '#7a4a2e'), roughness: 0.7 });
+  ag.computeBoundingBox(); const uv = ag.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (ag.attributes.position.getX(i) + 0.7) / 1.45, (ag.attributes.position.getY(i) + 0.2) / 0.4);
+  g.add(mesh(at(ag, 0.25, 1.75, 0.06, 0, 0, 0), sm));
+  const fl = []; const r = rand(3);
+  for (let i = 0; i < 14; i++) fl.push(mesh(at(new THREE.SphereGeometry(0.06, 8, 6), (r() - 0.5) * 0.6, 0.06, (r() - 0.5) * 0.6), new THREE.MeshStandardMaterial({ color: [0xe58fb0, 0xf4d35e, 0xfff6e0][i % 3], roughness: 0.7 }), false));
+  fl.forEach((f) => g.add(f));
+  return g;
+}
+function makeBunting() {
+  // Strings of little cloth flags across the road.
+  const g = new THREE.Group(), m = mats();
+  for (const x of [-2.2, 2.2]) g.add(mesh(at(new THREE.CylinderGeometry(0.06, 0.07, 3.2, 8), x, 1.6, 0), m.woodDark));
+  const cols = [0xc8553d, 0xe9b44c, 0xfbf1df, 0x5f8a6a, 0xe58fb0];
+  for (let row = 0; row < 2; row++) {
+    const n = 14, y0 = 3.0 - row * 0.35;
+    const pts = []; for (let i = 0; i <= 20; i++) { const t = i / 20; pts.push(new THREE.Vector3(-2.2 + 4.4 * t, y0 - Math.sin(t * Math.PI) * 0.4, 0)); }
+    g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.01, 4), m.white, false));
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n, x = -2.2 + 4.4 * t, y = y0 - Math.sin(t * Math.PI) * 0.4;
+      const tri = new THREE.Shape(); tri.moveTo(-0.11, 0); tri.lineTo(0.11, 0); tri.lineTo(0, -0.26); tri.lineTo(-0.11, 0);
+      g.add(mesh(at(new THREE.ShapeGeometry(tri), x, y, 0), new THREE.MeshStandardMaterial({ color: cols[(i + row) % cols.length], roughness: 0.8, side: THREE.DoubleSide }), true, false));
+    }
+  }
+  return g;
+}
+
 // ---------- build everything ----------
 export function buildWorld(scene) {
   makeSky(scene); makeGround(scene); makeForest(scene); makeFence(scene);
@@ -538,7 +622,7 @@ export function buildWorld(scene) {
   // decorations
   const decor = (o, x, z, ry = 0, rr = 0) => { o.position.set(x, 0, z); o.rotation.y = ry; scene.add(o); if (rr) colliders.push({ x, z, r: rr }); return o; };
   decor(makeLamp(), -1.6, 3.2, 0, 0.12); decor(makeLamp(), 1.6, -3.4, Math.PI, 0.12); decor(makeLamp(), -1.6, 13, 0, 0.12);
-  decor(makeBench(), -2.8, -2.6 + 9, Math.PI / 2, 0); // bench by the path
+  decor(makeBench(), -3.6, 8.9, Math.PI / 2, 0); // bench by the path
   decor(makeBarrel(), 6.6, -9.6, 0, 0.35); decor(makeCrate(), -6.6, -9.4, 0.4, 0.4); decor(makeCrate(), -6.9, -8.7, 1.2, 0.4);
   const well = new THREE.Group();
   well.add(mesh(at(new THREE.CylinderGeometry(0.7, 0.75, 0.75, 24, 1, true), 0, 0.37, 0), mats().stone));
@@ -568,6 +652,18 @@ export function buildWorld(scene) {
   const field = makeField(); scene.add(field.group); updateFieldInstances(field);
   const tea = makeTeaGarden(); scene.add(tea.group);
   const flowers = makeFlowerGarden(); scene.add(flowers);
+  const jamGroup = new THREE.Group(); scene.add(jamGroup);
+  const jamKitchen = makeJamKitchen(); jamKitchen.position.copy(SPOTS.jamKitchen); jamGroup.add(jamKitchen);
+  colliders.push({ box: [SPOTS.jamKitchen.x - 1.45, SPOTS.jamKitchen.z - 1.05, SPOTS.jamKitchen.x + 1.45, SPOTS.jamKitchen.z + 1.0], need: 'jam' });
+  const jamBasket = makeBasket(1); jamBasket.position.copy(SPOTS.jamIn).add(new THREE.Vector3(0, 0, -0.9)); jamGroup.add(jamBasket);
+  const jamOutTable = makeTable(1.3, 0.7, 0.8); jamOutTable.position.copy(SPOTS.jamOut).add(new THREE.Vector3(0, 0, -0.95)); jamGroup.add(jamOutTable);
+  const jamTable = makeTable(1.1, 0.8, 0.95); jamTable.position.copy(SPOTS.jamTable); jamGroup.add(jamTable);
+  colliders.push({ box: [SPOTS.jamTable.x - 0.55, SPOTS.jamTable.z - 0.4, SPOTS.jamTable.x + 0.55, SPOTS.jamTable.z + 0.4], need: 'jam' });
+  const cart = makeCart(); cart.position.copy(SPOTS.cart).add(new THREE.Vector3(0, 0, -1.05)); scene.add(cart);
+  colliders.push({ box: [cart.position.x - 0.8, cart.position.z - 0.6, cart.position.x + 0.8, cart.position.z + 0.6] });
+  const signpost = makeSignpost(); signpost.position.set(2.6, 0, 16.6); signpost.rotation.y = -0.2; scene.add(signpost);
+  const bunting = makeBunting(); bunting.position.set(0, 0, 12.2); scene.add(bunting);
+  colliders.push({ x: -2.2, z: 12.2, r: 0.12, need: 'sign2' }, { x: 2.2, z: 12.2, r: 0.12, need: 'sign2' });
 
   const wind = makeGrass(scene, (x, z) => {
     if (x > FIELD.x0 - 0.5 && x < FIELD.x0 + FIELD.nx + 0.5 && z > FIELD.z0 - 0.5 && z < FIELD.z0 + FIELD.nz + 0.5) return true;
@@ -577,14 +673,17 @@ export function buildWorld(scene) {
   });
 
   return {
-    colliders, trees, treeGroups, field, tea, flowers, bakery, pieOven, breadOven, breadGroup,
+    colliders, trees, treeGroups, field, tea, flowers, bakery, jamGroup, jamKitchen, signpost, bunting, pieOven, breadOven, breadGroup,
     anchors: {
       pieIn: pieInBasket.position.clone().add(new THREE.Vector3(0, 0.25, 0)),
       pieOut: pieTable.position.clone().add(new THREE.Vector3(0, 0.83, 0)),
       breadIn: breadBasket.position.clone().add(new THREE.Vector3(0, 0.25, 0)),
       breadOut: breadTable.position.clone().add(new THREE.Vector3(0, 0.83, 0)),
       stall: SPOTS.stall.clone().add(new THREE.Vector3(0, 1.01, 0)),
-      cash: cashBarrel.position.clone().add(new THREE.Vector3(0, 0.88, 0))
+      cash: cashBarrel.position.clone().add(new THREE.Vector3(0, 0.88, 0)),
+      jamIn: jamBasket.position.clone().add(new THREE.Vector3(0, 0.25, 0)),
+      jamOut: jamOutTable.position.clone().add(new THREE.Vector3(0, 0.83, 0)),
+      jamTable: SPOTS.jamTable.clone().add(new THREE.Vector3(0, 0.98, 0))
     },
     wind, addBox: box
   };

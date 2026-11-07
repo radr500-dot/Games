@@ -342,12 +342,13 @@ function makeWagon(H) {
   rb(g, 2.4, 0.5, 1.3, '#C9864A', 0, 1.0, 0, 0.08); rb(g, 2.3, 0.06, 1.2, '#E3A462', 0, 1.26, 0, 0.02);
   for (const [x, z] of [[-0.8, -0.72], [0.8, -0.72], [-0.8, 0.72], [0.8, 0.72]]) { cyl(g, 0.42, 0.42, 0.12, '#6E4426', x, 0.45, z, 18, { rx: Math.PI / 2 }); cyl(g, 0.14, 0.14, 0.14, '#D9A16A', x, 0.45, z, 10, { rx: Math.PI / 2 }); }
   for (const z of [-0.35, 0.35]) rb(g, 1.6, 0.1, 0.1, '#8B5A34', 1.85, 0.85, z, 0.03, { rz: 0.3 });
-  for (const x of [-0.75, 0.75]) rb(g, 0.1, 1.4, 0.1, '#9A6237', x, 1.8, 0.6, 0.03);
-  rb(g, 1.85, 0.98, 0.08, '#8B4E2A', 0, 2.05, 0.6, 0.05, { rx: -0.25 });
+  for (const x of [-1.2, 1.2]) rb(g, 0.12, 2.0, 0.12, '#9A6237', x, 2.1, 0.6, 0.03);
+  rb(g, 2.7, 1.5, 0.1, '#8B4E2A', 0, 2.65, 0.6, 0.06, { rx: -0.55 });
   const out = bakeStatic(g);
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  out.add(mesh(at(new THREE.PlaneGeometry(1.7, 0.85), 0, 2.05, 0.66, -0.25), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), false));
+  // a big board tipped back toward the camera, so the order reads from a distance
+  const cv = document.createElement('canvas'); cv.width = 640; cv.height = 352;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  out.add(mesh(at(new THREE.PlaneGeometry(2.5, 1.375), 0, 2.65, 0.66, -0.55), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), false));
   return { group: out, ctx: cv.getContext('2d'), tex };
 }
 export const makeWagonIcon = () => makeWagon().group;
@@ -365,24 +366,24 @@ function makePond(H) {
 }
 export const FARM_SPOTS = {
   eggs: new V3(19.8, 0, -7.6), custardIn: new V3(18.6, 0, -2.1), custardOut: new V3(21.0, 0, -2.1),
-  milk: new V3(27.2, 0, -7.6), butterIn: new V3(25.9, 0, -2.1), butterOut: new V3(28.5, 0, -2.1),
-  tartIn: new V3(-21.7, 0, -2.1), tartOut: new V3(-19.3, 0, -2.1),
-  comb: new V3(-27.4, 0, -7.6), honeyIn: new V3(-28.7, 0, -2.1), honeyOut: new V3(-26.1, 0, -2.1),
+  milk: new V3(30.2, 0, -7.6), butterIn: new V3(28.9, 0, -2.1), butterOut: new V3(31.5, 0, -2.1),
+  tartIn: new V3(-23.2, 0, -2.1), tartOut: new V3(-20.8, 0, -2.1),
+  comb: new V3(-30.4, 0, -7.6), honeyIn: new V3(-31.7, 0, -2.1), honeyOut: new V3(-29.1, 0, -2.1),
   order: new V3(10.5, 0, -5.3),
   // a short lane leads round to the front of each, so the building never hides the spots
   cheeseIn: new V3(18.5, 0, 6.5), cheeseOut: new V3(21.1, 0, 6.5),
   ciderIn: new V3(-17.6, 0, 6.2), ciderOut: new V3(-20.2, 0, 6.2)
 };
 export const FARM_PATHS = [
-  [13.6, 1.2, 30, 1.2, 1.6], [23.5, 1.2, 23.5, -9.4, 1.4],
-  [-6, 1.2, -14, 0.2, 1.6], [-14, 0.2, -30, 0.2, 1.6], [-24, 0.2, -24, -9.4, 1.4],
+  [13.6, 1.2, 33, 1.2, 1.6], [25.0, 1.2, 25.0, -9.4, 1.4],
+  [-6, 1.2, -14, 0.2, 1.6], [-14, 0.2, -33, 0.2, 1.6], [-26.2, 0.2, -26.2, -9.4, 1.4],
   [5.2, -3.0, 10.5, -4.3, 1.4],
   [17.1, 1.2, 17.1, 7.6, 1.3], [17.1, 7.6, 22.4, 7.6, 1.3], // lane to the cheese room
   [-16.9, 0.2, -16.9, 7.3, 1.3], [-16.9, 7.3, -20.4, 7.3, 1.3] // lane to the cider press
 ];
-const BUSHES = []; for (const z of [2.6, 5.0, 7.4, 9.8]) for (const x of [-28.6, -26.2, -23.8, -21.4]) BUSHES.push([x, z]);
-const HIVES = [[-29.6, -11.8, 0xf6f2ea], [-28.1, -12.1, 0xcfe3cf], [-26.6, -11.8, 0xf2d98a], [-25.1, -12.1, 0xc9dbe8]];
-export const PADDOCK = [24.2, 3.4, 30.4, 13.6];
+const BUSHES = []; for (const z of [2.6, 5.0, 7.4, 9.8]) for (const x of [-31.6, -29.2, -26.8, -24.4]) BUSHES.push([x, z]);
+const HIVES = [[-32.6, -11.8, 0xf6f2ea], [-31.1, -12.1, 0xcfe3cf], [-29.6, -11.8, 0xf2d98a], [-28.1, -12.1, 0xc9dbe8]];
+export const PADDOCK = [27.2, 3.4, 33.4, 13.6];
 const HEN_RUN = [17.4, -13.1, 22.2, -9.3];
 
 export function buildFarm(scene, colliders, H) {
@@ -411,24 +412,24 @@ export function buildFarm(scene, colliders, H) {
   anchors.custardIn = basketAt(pastry, S.custardIn); anchors.custardOut = tableAt(pastry, S.custardOut);
 
   const dairy = grp('dairy');
-  const barn = makeBarn(H); barn.position.set(27.2, 0, -11.2); dairy.add(barn); { const ao = H.aoBlob(3.0, 2.2, 0.5); ao.position.copy(barn.position); dairy.add(ao); } box(24.8, -12.9, 29.6, -9.5, 'dairy');
+  const barn = makeBarn(H); barn.position.set(30.2, 0, -11.2); dairy.add(barn); { const ao = H.aoBlob(3.0, 2.2, 0.5); ao.position.copy(barn.position); dairy.add(ao); } box(27.8, -12.9, 32.6, -9.5, 'dairy');
   const stand = makeMilkStand(); stand.position.copy(S.milk).add(new V3(0, 0, -0.95)); dairy.add(stand);
   box(S.milk.x - 1.2, S.milk.z - 1.35, S.milk.x + 1.2, S.milk.z - 0.55, 'dairy');
   anchors.milk = stand.position.clone().add(new V3(0, 0.75, 0));
   dairy.add(makeRailFence(...PADDOCK)); box(PADDOCK[0] - 0.1, PADDOCK[1] - 0.1, PADDOCK[2] + 0.1, PADDOCK[3] + 0.1, 'dairy');
   const tg = new THREE.Group(); rb(tg, 1.4, 0.4, 0.5, '#8B5A34', 0, 0.2, 0, 0.05); rb(tg, 1.25, 0.04, 0.36, '#5CC3E8', 0, 0.39, 0, 0.02); const trough = bakeStatic(tg);
-  trough.position.set(25.4, 0, 12.4); dairy.add(trough);
+  trough.position.set(28.4, 0, 12.4); dairy.add(trough);
   const cows = [];
-  for (let i = 0; i < 3; i++) { const c = makeCow(i * 11 + 5); c.position.set(26 + i * 1.6, 0, 5.5 + i * 2.4); c.rotation.y = i * 2; dairy.add(c); cows.push(c); }
+  for (let i = 0; i < 3; i++) { const c = makeCow(i * 11 + 5); c.position.set(29 + i * 1.6, 0, 5.5 + i * 2.4); c.rotation.y = i * 2; dairy.add(c); cows.push(c); }
 
   const churn = grp('churn');
-  const ch = makeChurnHouse(H); ch.position.set(27.2, 0, -4.6); churn.add(ch); { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(ch.position); churn.add(ao); } box(25.75, -5.65, 28.65, -3.6, 'churn');
+  const ch = makeChurnHouse(H); ch.position.set(30.2, 0, -4.6); churn.add(ch); { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(ch.position); churn.add(ao); } box(28.75, -5.65, 31.65, -3.6, 'churn');
   anchors.butterIn = basketAt(churn, S.butterIn); anchors.butterOut = tableAt(churn, S.butterOut);
 
   // ----- west hill: strawberries and bees -----
   const west = grp('westLand');
   const berries = grp('berries'), bushes = [];
-  { const sg = new THREE.Group(); for (const z of [2.6, 5.0, 7.4, 9.8]) { rb(sg, 8.8, 0.16, 1.4, '#9C5E2E', -25, 0.05, z, 0.06, { cast: false }); rb(sg, 8.6, 0.05, 1.2, '#F2C25A', -25, 0.14, z, 0.02, { cast: false }); } berries.add(bakeStatic(sg)); }
+  { const sg = new THREE.Group(); for (const z of [2.6, 5.0, 7.4, 9.8]) { rb(sg, 8.8, 0.16, 1.4, '#9C5E2E', -28, 0.05, z, 0.06, { cast: false }); rb(sg, 8.6, 0.05, 1.2, '#F2C25A', -28, 0.14, z, 0.02, { cast: false }); } berries.add(bakeStatic(sg)); }
   BUSHES.forEach(([x, z], i) => {
     const b = makeBush(H, 200 + i * 3); b.group.position.set(x, 0, z); b.group.rotation.y = i * 1.7; berries.add(b.group);
     bushes.push({ x, z, apples: b.berries, group: 'berries', fruit: 'berry', foliage: null, fade: 1, reach: 1.3 });
@@ -437,7 +438,7 @@ export function buildFarm(scene, colliders, H) {
   { const pg = new THREE.Group(); rb(pg, 0.12, 1.3, 0.12, '#9A6237', 0, 0.65, -0.05, 0.03); const post = bakeStatic(pg); signBoard(post, 'Berries', 0, 1.25, 0.02, 1.2); post.position.set(-17.2, 0, -1.3); berries.add(post); }
 
   const tarts = grp('tarts');
-  const tOven = H.makeOven('pie'); tOven.position.set(-20.5, 0, -4.6); tarts.add(tOven); box(-21.9, -5.9, -19.1, -3.3, 'tarts');
+  const tOven = H.makeOven('pie'); tOven.position.set(-22.0, 0, -4.6); tarts.add(tOven); box(-23.4, -5.9, -20.6, -3.3, 'tarts');
   anchors.tartIn = basketAt(tarts, S.tartIn); anchors.tartOut = tableAt(tarts, S.tartOut);
 
   const bees = grp('bees');
@@ -452,7 +453,7 @@ export function buildFarm(scene, colliders, H) {
     const fc = [0xb7a6e8, 0xf4d35e, 0xfff6e0, 0xe58fb0, 0x8fb3e0];
     let k = 0;
     for (let i = 0; i < 1500 && k < 500; i++) {
-      const x = -30.4 + r() * 8, z = -13.8 + r() * 4.6;
+      const x = -33.4 + r() * 8, z = -13.8 + r() * 4.6;
       if (HIVES.some(([hx, hz]) => Math.hypot(hx - x, hz - z) < 0.55)) continue;
       mtx.compose(new V3(x, 0, z), new THREE.Quaternion(), new V3(1, 0.6 + r() * 0.9, 1)); im.setMatrixAt(k, mtx); im.setColorAt(k++, col.set(fc[(r() * fc.length) | 0]));
     }
@@ -463,7 +464,7 @@ export function buildFarm(scene, colliders, H) {
   const beeData = Array.from({ length: 36 }, (_, i) => ({ hive: HIVES[i % 4], a: i * 1.7, r: 0.5 + (i % 5) * 0.35, h: 0.6 + (i % 3) * 0.35, sp: 0.8 + (i % 4) * 0.3 }));
 
   const honey = grp('honey');
-  const hh2 = makeHoneyHouse(H); hh2.position.set(-27.4, 0, -4.6); honey.add(hh2); { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(hh2.position); honey.add(ao); } box(-28.85, -5.65, -25.95, -3.6, 'honey');
+  const hh2 = makeHoneyHouse(H); hh2.position.set(-30.4, 0, -4.6); honey.add(hh2); { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(hh2.position); honey.add(ao); } box(-31.85, -5.65, -28.95, -3.6, 'honey');
   anchors.honeyIn = basketAt(honey, S.honeyIn); anchors.honeyOut = tableAt(honey, S.honeyOut);
 
   // ----- cheese room (east) and cider press (west), both facing the path from the north -----

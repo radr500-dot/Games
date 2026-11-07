@@ -10,7 +10,7 @@ import * as OB from './art.js';
 import { buildFarm, FARM_PATHS, FARM_SPOTS } from './farm.js';
 
 // ---------- layout ----------
-export const BOUNDS = { minX: -30.8, maxX: 30.8, minZ: -14.2, maxZ: 14.6 };
+export const BOUNDS = { minX: -33.8, maxX: 33.8, minZ: -14.2, maxZ: 14.6 };
 export const HOME = { minX: -16.2, maxX: 16.2 }; // the first plot; the east and west land opens later
 export const PATHS = [ // [x1,z1,x2,z2,width]
   [0, 18, 0, 6.4, 2.0], [0, 4.2, 0, -8.6, 2.0],
@@ -53,6 +53,7 @@ export const PADS = {
   basket: { pos: [-2.6, 2.6], cost: 25, name: 'Bigger tray', icon: 'tray' },
   wheat: { pos: [5.0, 3.3], cost: 40, name: 'Wheat field', icon: 'wheat' },
   sign1: { pos: [2.6, 12.6], cost: 35, name: 'Road sign', icon: 'sign' },
+  line2: { pos: [-6.0, 13.0], cost: 70, name: 'Second line', icon: 'sign', req: 'sign1' }, // customers queue in two lines
   bread: { pos: [4.4, -4.6], cost: 60, name: 'Bread oven', icon: 'bread', req: 'wheat' },
   oven1: { pos: [0, -7.0], cost: 60, name: 'Hotter ovens', icon: 'fire' },
   jam: { pos: [-9.6, -7.2], cost: 90, name: 'Jam kitchen', icon: 'jam', req: 'trees2' },
@@ -74,16 +75,16 @@ export const PADS = {
   eastLand: { pos: [14.6, -6.2], cost: 400, name: 'East meadow', icon: 'land', lvl: 4 },
   hens: { pos: [19.8, -7.6], cost: 250, name: 'Hen house', icon: 'egg', req: 'eastLand' },
   pastry: { pos: [19.8, -2.1], cost: 320, name: 'Custard oven', icon: 'custard', req: 'hens' },
-  dairy: { pos: [27.2, -7.6], cost: 480, name: 'Dairy barn', icon: 'milk', req: 'pastry', lvl: 6 },
-  churn: { pos: [27.2, -2.1], cost: 540, name: 'Butter churn', icon: 'butter', req: 'dairy' },
+  dairy: { pos: [30.2, -7.6], cost: 480, name: 'Dairy barn', icon: 'milk', req: 'pastry', lvl: 6 },
+  churn: { pos: [30.2, -2.1], cost: 540, name: 'Butter churn', icon: 'butter', req: 'dairy' },
   runner2: { pos: [-1.9, -2.6], cost: 500, name: 'Second shop helper', icon: 'runner', req: 'pastry' },
-  handE: { pos: [23.5, -5.6], cost: 600, name: 'Meadow helper', icon: 'helper', req: 'churn' },
+  handE: { pos: [25.0, -5.6], cost: 600, name: 'Meadow helper', icon: 'helper', req: 'churn' },
   westLand: { pos: [-15.0, 0.2], cost: 900, name: 'West hill', icon: 'land', req: 'eastLand', lvl: 8 },
   berries: { pos: [-18.6, 0.2], cost: 650, name: 'Strawberry patch', icon: 'berry', req: 'westLand' },
-  tarts: { pos: [-20.5, -2.1], cost: 800, name: 'Tart oven', icon: 'tart', req: 'berries' },
-  bees: { pos: [-27.4, -7.6], cost: 1000, name: 'Bee hives', icon: 'comb', req: 'tarts', lvl: 10 },
-  honey: { pos: [-27.4, -2.1], cost: 1100, name: 'Honey house', icon: 'honey', req: 'bees' },
-  handW: { pos: [-24, -5.6], cost: 1250, name: 'Hill helper', icon: 'helper', req: 'honey' },
+  tarts: { pos: [-22.0, -2.1], cost: 800, name: 'Tart oven', icon: 'tart', req: 'berries' },
+  bees: { pos: [-30.4, -7.6], cost: 1000, name: 'Bee hives', icon: 'comb', req: 'tarts', lvl: 10 },
+  honey: { pos: [-30.4, -2.1], cost: 1100, name: 'Honey house', icon: 'honey', req: 'bees' },
+  handW: { pos: [-26.2, -5.6], cost: 1250, name: 'Hill helper', icon: 'helper', req: 'honey' },
   cheese: { pos: [19.8, 6.5], cost: 900, name: 'Cheese room', icon: 'cheese', req: 'churn', lvl: 9 },
   cider: { pos: [-18.9, 6.2], cost: 1400, name: 'Cider press', icon: 'cider', req: 'tarts', lvl: 11 }
 };
@@ -95,11 +96,12 @@ export const LEVELS = {
   lvCrowd: { pos: [2.6, 12.6], name: 'More customers', icon: 'sign', req: 'sign2', base: 200 },
   lvGrow: { pos: [-4.8, 4.3], name: 'Faster growing', icon: 'tree', req: 'helper3', base: 220 },
   lvStore: { pos: [5.0, 3.3], name: 'Bigger baskets', icon: 'bread', req: 'helper2', base: 160, max: 16 },
-  lvFarm: { pos: [23.5, -5.6], name: 'Busier animals', icon: 'egg', req: 'handE', base: 400 },
+  lvFarm: { pos: [25.0, -5.6], name: 'Busier animals', icon: 'egg', req: 'handE', base: 400 },
   lvHands: { pos: [-1.9, -2.6], name: 'Quicker helpers', icon: 'runner', req: 'runner2', base: 350 },
-  lvHill: { pos: [-24, -5.6], name: 'Busier bees', icon: 'comb', req: 'handW', base: 500 }
+  lvHill: { pos: [-26.2, -5.6], name: 'Busier bees', icon: 'comb', req: 'handW', base: 500 },
+  lvSpeed: { pos: [5.0, 13.6], name: 'Comfy boots', icon: 'runner', req: 'basket', base: 60, max: 12 } // you walk faster
 };
-export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'bread', 'oven1', 'jam', 'tea', 'helper', 'flowers', 'price1', 'barrow', 'runner', 'sign2', 'orchard3', 'oven2', 'helper2', 'price2', 'stall2', 'helper3',
+export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'line2', 'bread', 'oven1', 'jam', 'tea', 'helper', 'flowers', 'price1', 'barrow', 'runner', 'sign2', 'orchard3', 'oven2', 'helper2', 'price2', 'stall2', 'helper3',
   'wagon', 'eastLand', 'hens', 'pastry', 'dairy', 'churn', 'runner2', 'handE', 'westLand', 'berries', 'tarts', 'cheese', 'bees', 'honey', 'cider', 'handW'];
 
 // ---------- sky + ground ----------
@@ -109,15 +111,15 @@ function makeSky(scene) {
 }
 function makeGround(scene) {
   // Flat bright grass with a few lighter and darker patches, and raised sandy paths.
-  const SIZE = 76;
+  const SIZE = 84;
   const g = new THREE.PlaneGeometry(SIZE, SIZE, 48, 48); g.rotateX(-Math.PI / 2); // split up so depth stays accurate far from the middle
   scene.add(mesh(g, new THREE.MeshStandardMaterial({ color: OB.GROUND_COLOR, roughness: 1 }), false, true));
-  const far = mesh(at(new THREE.RingGeometry(37, 260, 64, 3), 0, -0.02, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: OB.GROUND_COLOR, roughness: 1 }), false, true);
+  const far = mesh(at(new THREE.RingGeometry(41, 260, 64, 3), 0, -0.02, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: OB.GROUND_COLOR, roughness: 1 }), false, true);
   scene.add(far);
   const r = rand(12);
   const patches = new THREE.Group();
   for (let i = 0; i < 90; i++) {
-    const x = (r() - 0.5) * 70, z = (r() - 0.5) * 40; if (pathAmount(x, z) > 0.02) continue;
+    const x = (r() - 0.5) * 76, z = (r() - 0.5) * 40; if (pathAmount(x, z) > 0.02) continue;
     const c = mesh(at(new THREE.CircleGeometry(0.5 + r() * 1.5, 18), x, 0.004, z, -Math.PI / 2, 0, 0, new THREE.Vector3(1, 0.6, 1)), new THREE.MeshStandardMaterial({ color: r() > 0.5 ? 0x93d34a : 0x79bc37, roughness: 1 }), false, true);
     patches.add(c);
   }
@@ -604,7 +606,7 @@ export function buildWorld(scene) {
     if (x > FIELD.x0 - 0.5 && x < FIELD.x0 + FIELD.nx + 0.5 && z > FIELD.z0 - 0.5 && z < FIELD.z0 + FIELD.nz + 0.5) return true;
     if (Math.hypot(x - 8, z - 11.4) < 3.6) return true;
     if (Math.hypot((x - 20.0) / 2.9, (z - 11.6) / 2.1) < 1) return true; // pond
-    if (x < -20 && x > -30 && z > 1.8 && z < 10.6) return true; // strawberry beds
+    if (x < -23 && x > -33 && z > 1.8 && z < 10.6) return true; // strawberry beds
     for (const c of colliders) if (c.box) { const [a, b, cc, d] = c.box; if ((cc - a) * (d - b) > 15) continue; if (x > a - 0.2 && x < cc + 0.2 && z > b - 0.2 && z < d + 0.2) return true; }
     return false;
   });

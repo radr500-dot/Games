@@ -125,7 +125,7 @@ function makeGround(scene) {
   const SIZE = 76, PX = 2048;
   const tex = canvasTex(PX, PX, (c, w, h) => {
     const img = c.createImageData(w, h), d = img.data;
-    const g1 = [0.33, 0.52, 0.2], g2 = [0.5, 0.64, 0.28], dirt = [0.76, 0.63, 0.44], dirt2 = [0.62, 0.5, 0.34];
+    const g1 = [0.38, 0.64, 0.2], g2 = [0.47, 0.73, 0.25], dirt = [0.93, 0.8, 0.56], dirt2 = [0.86, 0.72, 0.5];
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const wx = (x / w - 0.5) * SIZE, wz = (y / h - 0.5) * SIZE;
       const n = fbm(wx * 0.35, 0, wz * 0.35) * 0.5 + 0.5, fine = noise3(wx * 6, 1, wz * 6) * 0.5 + 0.5;
@@ -144,7 +144,7 @@ function makeGround(scene) {
       const x = rr() * w, y = rr() * h, wx = (x / w - 0.5) * SIZE, wz = (y / h - 0.5) * SIZE;
       const p = pathAmount(wx, wz);
       if (p > 0.6) { c.fillStyle = rr() > 0.5 ? 'rgba(110,90,70,.35)' : 'rgba(240,225,200,.4)'; c.beginPath(); c.arc(x, y, 0.8 + rr() * 1.4, 0, 7); c.fill(); }
-      else if (p < 0.1) { c.fillStyle = rr() > 0.5 ? 'rgba(60,95,40,.35)' : 'rgba(170,200,110,.3)'; c.fillRect(x, y, 1.5, 3 + rr() * 3); }
+      else if (p < 0.1) { c.fillStyle = rr() > 0.5 ? 'rgba(80,130,50,.16)' : 'rgba(190,225,130,.18)'; c.fillRect(x, y, 1.5, 3 + rr() * 3); }
     }
   });
   const g = new THREE.PlaneGeometry(SIZE, SIZE, 48, 48); g.rotateX(-Math.PI / 2); // split up so depth stays accurate far from the middle
@@ -168,7 +168,7 @@ function makeGround(scene) {
     sh.fragmentShader = 'uniform sampler2D uDet;\n' + sh.fragmentShader.replace('#include <map_fragment>',
       `#include <map_fragment>
       float dA = texture2D(uDet, vMapUv * 38.0).r, dB = texture2D(uDet, vMapUv * 9.0 + 0.37).r;
-      diffuseColor.rgb *= 0.78 + (dA * 0.6 + dB * 0.4) * 0.44;`);
+      diffuseColor.rgb *= 0.95 + (dA * 0.6 + dB * 0.4) * 0.1;`);
   };
   const ground = mesh(g, gm, false, true);
   scene.add(ground);
@@ -186,12 +186,12 @@ function makeGround(scene) {
 }
 
 // ---------- vegetation ----------
-function foliageBlob(cx, cy, cz, rad, seed, light = 0x86b452, dark = 0x2f5a22, detail) {
+function foliageBlob(cx, cy, cz, rad, seed, light = 0x7cc232, dark = 0x1f6a1a, detail) {
   // Leafy canopy: a bumpy ball made of many small leaf clumps, darker in the hollows.
   const ico = new THREE.IcosahedronGeometry(rad, detail ?? (rad > 0.8 ? 4 : 3)); ico.deleteAttribute('normal'); ico.deleteAttribute('uv');
   const g = mergeVertices(ico);
-  const L = new THREE.Color(light), D = new THREE.Color(dark), M = new THREE.Color(0x5f8f3a);
-  const bump = (v) => fbm(v.x * 2.2 + seed, v.y * 2.2, v.z * 2.2 - seed) * 0.22 + Math.abs(noise3(v.x * 7 / rad + seed, v.y * 7 / rad, v.z * 7 / rad)) * 0.11;
+  const L = new THREE.Color(light), D = new THREE.Color(dark), M = new THREE.Color(0x46962a);
+  const bump = (v) => fbm(v.x * 1.6 + seed, v.y * 1.6, v.z * 1.6 - seed) * 0.12; // smooth, rounded, toy-like
   displace(g, (v) => { v.multiplyScalar(1 + bump(v) - 0.04); });
   g.translate(cx, cy, cz);
   paint(g, (x, y, z, c) => {
@@ -292,7 +292,6 @@ export function makeTree(seed, fruit = true) {
   centers.forEach(([x, y, z, rad], i) => blobs.push(foliageBlob(x, y, z, rad, seed + i * 3.1)));
   const foliage = mesh(merge(blobs), fruit ? m.foliage.clone() : m.foliage); grp.add(foliage);
   // thousands of little leaves on the outside of the canopy, so the edges look leafy instead of smooth
-  const leaves = mesh(leafCards(centers, seed), fruit ? leafMat().clone() : leafMat(), true, true); foliage.add(leaves);
   grp.add(aoBlob(1.9, 1.9, 0.5));
   const apples = [];
   if (fruit) {
@@ -317,7 +316,7 @@ function makeGrass(scene, avoid) {
     blades.push(at(b, (r() - 0.5) * 0.12, 0, (r() - 0.5) * 0.12, 0, r() * Math.PI * 2, (r() - 0.5) * 0.4, 0.7 + r() * 0.6));
   }
   const geo = merge(blades);
-  paint(geo, (x, y, z, c) => c.set(0x3d6a26).lerp(new THREE.Color(0x9cc25a), THREE.MathUtils.clamp(y / 0.22, 0, 1)));
+  paint(geo, (x, y, z, c) => c.set(0x5a9a34).lerp(new THREE.Color(0xb4e070), THREE.MathUtils.clamp(y / 0.22, 0, 1)));
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
   const wind = { value: 0 };
   mat.onBeforeCompile = (sh) => {
@@ -328,7 +327,7 @@ function makeGrass(scene, avoid) {
       float sway = sin(uTime * 1.6 + wp.x * 0.6 + wp.y * 0.4) * 0.06 + sin(uTime * 2.7 + wp.x) * 0.02;
       transformed.x += sway * position.y * 3.0; transformed.z += sway * position.y * 1.5;`);
   };
-  const N = matchMedia("(pointer: coarse)").matches ? 16000 : 21000, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
+  const N = 5200, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
   const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   let k = 0, tries = 0;
   while (k < N && tries < N * 6) {

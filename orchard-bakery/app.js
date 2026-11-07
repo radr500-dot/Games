@@ -20,7 +20,7 @@ const MIN_RATIO = Math.min(DPR, 1.75);
 renderer.setPixelRatio(pixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.92;
+renderer.toneMappingExposure = 0.86; // bright and sunny, like a toy farm
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -31,13 +31,13 @@ const envTex = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 scene.environment = envTex;
 // soften the studio reflections so the outdoor sun leads
 
-const hemi = new THREE.HemisphereLight(0xdcebff, 0x6a7a3a, 0.7); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff0d6, 3.0);
+const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x7fa456, 1.0); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2da, 2.7);
 sun.position.set(-12, 22, 10); sun.castShadow = true;
 const BIG = !matchMedia("(pointer: coarse)").matches && !/[?&]lite/.test(location.search);
 sun.shadow.mapSize.set(BIG ? 4096 : 2048, BIG ? 4096 : 2048);
 Object.assign(sun.shadow.camera, { left: -21, right: 21, top: 19, bottom: -19, near: 1, far: 70 });
-sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 3;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 5;
 scene.add(sun, sun.target);
 
 const camera = new THREE.PerspectiveCamera(40, 1, 0.6, 400);
@@ -1072,20 +1072,20 @@ let fov = 40;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h;
-  fov = camera.aspect < 0.9 ? 48 : 40; camera.fov = fov; camera.updateProjectionMatrix();
+  fov = camera.aspect < 0.9 ? 40 : 32; // a narrower lens looks like a tabletop model camera.fov = fov; camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
 function camDistance() {
   const want = 17; // world units to keep visible side to side
   const d = want / (2 * Math.tan(THREE.MathUtils.degToRad(fov / 2)) * camera.aspect);
-  return THREE.MathUtils.clamp(d, 12, 21) * zoom;
+  return THREE.MathUtils.clamp(d, 14, 27) * zoom;
 }
 const lookAhead = new V3();
 function updateCamera(dt, snap) {
   // the camera leads a little in the direction you're walking, so you see where you're going
   lookAhead.lerp(new V3(player.vel.x, 0, player.vel.z).multiplyScalar(0.32), snap ? 1 : 1 - Math.exp(-2.5 * dt));
   const target = player.obj.position.clone().add(new V3(0, 0.8, 0)).add(lookAhead);
-  const d = camDistance(), el = THREE.MathUtils.degToRad(44);
+  const d = camDistance(), el = THREE.MathUtils.degToRad(50);
   const want = target.clone().add(new V3(0, Math.sin(el) * d, Math.cos(el) * d));
   const k = snap ? 1 : 1 - Math.exp(-6 * dt);
   camTarget.lerp(target, k); camPos.lerp(want, k);

@@ -353,7 +353,7 @@ export function makePerson(opts = {}) {
     const strap = mesh(at(new THREE.TorusGeometry(0.14, 0.012, 6, 20, Math.PI), 0, 0.46, 0.06, 0.3, 0, 0), mats().cloth, false); torso.add(strap);
   }
   const neck = mesh(at(new THREE.CylinderGeometry(0.05, 0.055, 0.08, 10), 0, 0.53, 0), skin); torso.add(neck);
-  const head = new THREE.Group(); head.position.y = 0.66; torso.add(head);
+  const head = new THREE.Group(); head.position.y = 0.72; head.scale.setScalar(1.5); torso.add(head); // big friendly toy heads
   head.add(mesh(at(new THREE.SphereGeometry(0.115, 24, 18), 0, 0, 0, 0, 0, 0, new THREE.Vector3(0.95, 1.05, 1)), skin));
   head.add(mesh(at(new THREE.SphereGeometry(0.02, 8, 6), 0, -0.01, 0.112), skin, false)); // nose
   const eyeM = smat(0x22160f, 0.3);
@@ -389,7 +389,7 @@ export function makePerson(opts = {}) {
     legs.push({ hip, kn });
   }
   // A wooden tray held in front when carrying things
-  const tray = new THREE.Group(); tray.position.set(0, 1.18 * H, 0.36); root.add(tray);
+  const tray = new THREE.Group(); tray.position.set(0, 1.18 * H, 0.4); tray.scale.setScalar(1.25); root.add(tray); // goods read big and clear
   const trayBoard = mesh(at(new THREE.BoxGeometry(0.46, 0.03, 0.34), 0, -0.02, 0), mats().wood); tray.add(trayBoard);
   tray.visible = false;
   root.userData = { body, hips, torso, head, arms, legs, tray, phase: 0, H, sit: 0 };

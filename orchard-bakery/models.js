@@ -151,35 +151,18 @@ export function textures() {
 // Shared materials
 const MAT = {};
 export function mats() {
+  // Flat colours only, no textures: the bright toy-farm look from the Design art pack.
   if (MAT.apple) return MAT;
-  const t = textures();
-  MAT.apple = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.38, clearcoat: 0.5, clearcoatRoughness: 0.35 });
-  MAT.stem = new THREE.MeshStandardMaterial({ color: 0x5a3d22, roughness: 0.9 });
-  MAT.leaf = new THREE.MeshStandardMaterial({ color: 0x4f8a3a, roughness: 0.6, side: THREE.DoubleSide });
-  MAT.crust = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62 });
-  MAT.tin = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, metalness: 0.85, roughness: 0.32 });
-  MAT.filling = new THREE.MeshStandardMaterial({ color: 0x9c3b22, roughness: 0.4 });
-  MAT.bread = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78 });
-  MAT.wheat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 });
-  MAT.gold = new THREE.MeshStandardMaterial({ color: 0xf1c04a, metalness: 1, roughness: 0.28 });
-  MAT.wood = new THREE.MeshStandardMaterial({ map: t.wood, roughness: 0.82 });
-  MAT.woodDark = new THREE.MeshStandardMaterial({ map: t.wood, color: 0x8a6a50, roughness: 0.85 });
-  MAT.beam = new THREE.MeshStandardMaterial({ color: 0x5b3f2b, roughness: 0.85 });
-  MAT.brick = new THREE.MeshStandardMaterial({ map: t.brick, bumpMap: t.brick, bumpScale: 0.02, roughness: 0.9 });
-  MAT.stone = new THREE.MeshStandardMaterial({ map: t.stone, bumpMap: t.stone, bumpScale: 0.03, roughness: 0.92 });
-  MAT.plaster = new THREE.MeshStandardMaterial({ map: t.plaster, roughness: 0.95 });
-  MAT.awning = new THREE.MeshStandardMaterial({ map: t.awning, roughness: 0.85, side: THREE.DoubleSide });
-  MAT.wicker = new THREE.MeshStandardMaterial({ map: t.wicker, bumpMap: t.wicker, bumpScale: 0.02, roughness: 0.9, side: THREE.DoubleSide });
-  MAT.bark = new THREE.MeshStandardMaterial({ map: t.bark, bumpMap: t.bark, bumpScale: 0.03, roughness: 0.95 });
-  MAT.foliage = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
-  MAT.roof = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
-  MAT.glass = new THREE.MeshPhysicalMaterial({ color: 0x8fb3bd, roughness: 0.08, metalness: 0.1, clearcoat: 1, emissive: 0x3a2a10, emissiveIntensity: 0.25 });
-  MAT.white = new THREE.MeshStandardMaterial({ color: 0xf8f4ea, roughness: 0.7 });
-  MAT.iron = new THREE.MeshStandardMaterial({ color: 0x3b3b3b, metalness: 0.6, roughness: 0.5 });
-  MAT.cloth = new THREE.MeshStandardMaterial({ color: 0xf7efe0, roughness: 0.9, side: THREE.DoubleSide });
-  MAT.fire = new THREE.MeshBasicMaterial({ color: 0xffa040 });
-  MAT.ember = new THREE.MeshBasicMaterial({ color: 0xff6a20 });
-  MAT.dark = new THREE.MeshStandardMaterial({ color: 0x1e1410, roughness: 1 });
+  const S = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.85, metalness: 0 }, o || {}));
+  MAT.apple = S(0xe2362a); MAT.stem = S(0x6b3f1f); MAT.leaf = S(0x4fb33a, { side: THREE.DoubleSide });
+  MAT.crust = S(0xd98a3a); MAT.tin = S(0xb5622d); MAT.filling = S(0xc8263d); MAT.bread = S(0xd98e3c); MAT.wheat = S(0xf4c843);
+  MAT.gold = S(0xf7c232, { metalness: 0.35, roughness: 0.45, emissive: 0x5a3a00, emissiveIntensity: 0.25 });
+  MAT.wood = S(0xc9884c); MAT.woodDark = S(0x8b5a34); MAT.beam = S(0x9a6237); MAT.brick = S(0xde7c47); MAT.stone = S(0xc9c3b3);
+  MAT.plaster = S(0xfff1d9); MAT.awning = S(0xe8392f, { side: THREE.DoubleSide }); MAT.wicker = S(0xd9a16a, { side: THREE.DoubleSide });
+  MAT.bark = S(0x8b5a34); MAT.foliage = S(0xffffff, { vertexColors: true, flatShading: true }); MAT.roof = S(0xffffff, { vertexColors: true });
+  MAT.glass = S(0xffd45a, { emissive: 0xffb62e, emissiveIntensity: 0.6 }); MAT.white = S(0xfff6e6); MAT.iron = S(0x4a3a30);
+  MAT.cloth = S(0xfff6e6, { side: THREE.DoubleSide }); MAT.fire = new THREE.MeshBasicMaterial({ color: 0xffa040 }); MAT.ember = new THREE.MeshBasicMaterial({ color: 0xff6a20 });
+  MAT.dark = S(0x3a2216, { roughness: 1 });
   return MAT;
 }
 
@@ -205,7 +188,7 @@ function appleGeo() {
   GEO.apple = { body: g, stem, leaf };
   return GEO.apple;
 }
-export function makeApple(withLeaf = true) {
+function old_makeApple(withLeaf = true) {
   const m = mats(), g = appleGeo(), grp = new THREE.Group();
   grp.add(mesh(g.body, m.apple)); grp.add(mesh(g.stem, m.stem, false));
   if (withLeaf) grp.add(mesh(g.leaf, m.leaf, false));
@@ -240,7 +223,7 @@ function pieGeo() {
   GEO.pie = { tin, crust: merge([top, crimp]), slits: merge(slits) };
   return GEO.pie;
 }
-export function makePie() {
+function old_makePie() {
   const m = mats(), g = pieGeo(), grp = new THREE.Group();
   grp.add(mesh(g.tin, m.tin)); grp.add(mesh(g.crust, m.crust)); grp.add(mesh(g.slits, m.filling, false));
   grp.userData.kind = 'pie';
@@ -272,7 +255,7 @@ function breadGeo() {
   GEO.bread = { loaf: g, cut };
   return GEO.bread;
 }
-export function makeBread() {
+function old_makeBread() {
   const m = mats(), g = breadGeo(), grp = new THREE.Group();
   grp.add(mesh(g.loaf, m.bread)); grp.add(mesh(g.cut, m.bread, false));
   grp.userData.kind = 'bread';
@@ -297,7 +280,7 @@ export function wheatStalkGeo(r, count = 1, spread = 0) {
   paint(g, (x, y, z, c) => c.copy(C(0x9c8a3a)).lerp(C(0xe8c56a), THREE.MathUtils.clamp(y / 0.9, 0, 1)).offsetHSL(0, 0, (hash3(x * 40, y * 9, z * 40) - 0.5) * 0.08));
   return g;
 }
-export function makeWheatBundle() {
+function old_makeWheatBundle() {
   if (!GEO.sheaf) {
     const r = rand(77);
     const g = wheatStalkGeo(r, 9, 0.08);
@@ -311,12 +294,12 @@ export function makeWheatBundle() {
   return grp;
 }
 
-export function makeCoin() {
+function old_makeCoin() {
   if (!GEO.coin) GEO.coin = merge([new THREE.CylinderGeometry(0.09, 0.09, 0.022, 24), at(new THREE.TorusGeometry(0.085, 0.008, 6, 24), 0, 0.011, 0, Math.PI / 2), at(new THREE.TorusGeometry(0.085, 0.008, 6, 24), 0, -0.011, 0, Math.PI / 2)]);
   return mesh(GEO.coin, mats().gold, true, false);
 }
 
-export function makeItem(kind) {
+function old_makeItem(kind) {
   if (kind === 'apple') return makeApple();
   if (kind === 'pie') return makePie();
   if (kind === 'bread') return makeBread();
@@ -334,7 +317,7 @@ const SHIRT = [0x6a8fc0, 0x8fb86a, 0xe0b44a, 0xc97a9a, 0x7a6ab0, 0x5aa0a0, 0xd98
 const PANTS = [0x3d4a5c, 0x5a4a3a, 0x6a6a72, 0x2f3a4a, 0x7a5a48];
 function smat(c, rough = 0.7) { return new THREE.MeshStandardMaterial({ color: c, roughness: rough }); }
 
-export function makePerson(opts = {}) {
+function old_makePerson(opts = {}) {
   const r = rand(opts.seed ?? 1);
   const pick = (a) => a[(r() * a.length) | 0];
   const skin = smat(opts.skin ?? pick(SKIN), 0.6), hair = smat(opts.hair ?? pick(HAIR), 0.55);
@@ -397,7 +380,7 @@ export function makePerson(opts = {}) {
 }
 
 // Walk cycle driven by distance travelled so feet never slide.
-export function animatePerson(p, speed, dt, carrying, sitting = false) {
+function old_animatePerson(p, speed, dt, carrying, sitting = false) {
   const u = p.userData;
   const s = THREE.MathUtils.clamp(speed / 3.6, 0, 1);
   u.phase += speed * dt * (Math.PI * 2 / 1.25);
@@ -429,7 +412,7 @@ export function animatePerson(p, speed, dt, carrying, sitting = false) {
 }
 
 // ---------- props ----------
-export function makeBasket(scale = 1) {
+function old_makeBasket(scale = 1) {
   const g = new THREE.Group(), m = mats();
   const prof = [[0.0, 0.0], [0.28, 0.0], [0.34, 0.05], [0.4, 0.3], [0.42, 0.32]].map(([r, y]) => new THREE.Vector2(r, y));
   g.add(mesh(new THREE.LatheGeometry(prof, 28), m.wicker));
@@ -437,7 +420,7 @@ export function makeBasket(scale = 1) {
   g.scale.setScalar(scale);
   return g;
 }
-export function makeBarrel() {
+function old_makeBarrel() {
   const g = new THREE.Group(), m = mats();
   const prof = []; for (let i = 0; i <= 10; i++) { const y = i / 10; prof.push(new THREE.Vector2(0.3 + Math.sin(y * Math.PI) * 0.06, y * 0.85)); }
   g.add(mesh(new THREE.LatheGeometry(prof, 20), m.woodDark));
@@ -445,7 +428,7 @@ export function makeBarrel() {
   g.add(mesh(at(new THREE.CircleGeometry(0.3, 20), 0, 0.85, 0, -Math.PI / 2), m.wood));
   return g;
 }
-export function makeCrate(w = 0.6, h = 0.45, d = 0.45) {
+function old_makeCrate(w = 0.6, h = 0.45, d = 0.45) {
   const g = new THREE.Group(), m = mats();
   for (let i = 0; i < 3; i++) g.add(mesh(at(new THREE.BoxGeometry(w, h / 3 - 0.02, 0.03), 0, h / 6 + i * h / 3, d / 2), m.wood), mesh(at(new THREE.BoxGeometry(w, h / 3 - 0.02, 0.03), 0, h / 6 + i * h / 3, -d / 2), m.wood));
   for (let i = 0; i < 3; i++) g.add(mesh(at(new THREE.BoxGeometry(0.03, h / 3 - 0.02, d), w / 2, h / 6 + i * h / 3, 0), m.wood), mesh(at(new THREE.BoxGeometry(0.03, h / 3 - 0.02, d), -w / 2, h / 6 + i * h / 3, 0), m.wood));
@@ -453,13 +436,13 @@ export function makeCrate(w = 0.6, h = 0.45, d = 0.45) {
   for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) g.add(mesh(at(new THREE.BoxGeometry(0.05, h, 0.05), x * w / 2, h / 2, z * d / 2), m.woodDark));
   return g;
 }
-export function makeTable(w = 1.2, d = 0.7, h = 0.78, m2) {
+function old_makeTable(w = 1.2, d = 0.7, h = 0.78, m2) {
   const g = new THREE.Group(), m = mats();
   g.add(mesh(at(new THREE.BoxGeometry(w, 0.05, d), 0, h, 0), m2 || m.wood));
   for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) g.add(mesh(at(new THREE.BoxGeometry(0.06, h, 0.06), x * (w / 2 - 0.06), h / 2, z * (d / 2 - 0.06)), m.woodDark));
   return g;
 }
-export function makeChair() {
+function old_makeChair() {
   const g = new THREE.Group(), m = mats();
   g.add(mesh(at(new THREE.BoxGeometry(0.42, 0.04, 0.42), 0, 0.46, 0), m.wood));
   for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) g.add(mesh(at(new THREE.CylinderGeometry(0.02, 0.02, 0.46, 6), x * 0.18, 0.23, z * 0.18), m.woodDark));
@@ -467,7 +450,7 @@ export function makeChair() {
   for (const y of [0.62, 0.8, 0.94]) g.add(mesh(at(new THREE.BoxGeometry(0.4, 0.05, 0.025), 0, y, -0.19), m.wood));
   return g;
 }
-export function makeLamp() {
+function old_makeLamp() {
   const g = new THREE.Group(), m = mats();
   g.add(mesh(at(new THREE.CylinderGeometry(0.045, 0.06, 2.4, 10), 0, 1.2, 0), m.iron));
   g.add(mesh(at(new THREE.BoxGeometry(0.4, 0.04, 0.04), 0.16, 2.3, 0), m.iron));
@@ -476,14 +459,14 @@ export function makeLamp() {
   lantern.add(mesh(at(new THREE.ConeGeometry(0.15, 0.12, 4), 0, 0.18, 0, 0, Math.PI / 4), m.iron));
   return g;
 }
-export function makeBench() {
+function old_makeBench() {
   const g = new THREE.Group(), m = mats();
   for (let i = 0; i < 3; i++) g.add(mesh(at(new THREE.BoxGeometry(1.6, 0.04, 0.12), 0, 0.45, -0.14 + i * 0.14), m.wood));
   for (let i = 0; i < 2; i++) g.add(mesh(at(new THREE.BoxGeometry(1.6, 0.1, 0.03), 0, 0.68 + i * 0.16, -0.24, -0.15), m.wood));
   for (const x of [-0.7, 0.7]) g.add(mesh(at(new THREE.BoxGeometry(0.06, 0.45, 0.42), x, 0.22, -0.05), m.iron), mesh(at(new THREE.BoxGeometry(0.05, 0.5, 0.05), x, 0.7, -0.26, -0.15), m.iron));
   return g;
 }
-export function makeUmbrella(color = 0xc8553d) {
+function old_makeUmbrella(color = 0xc8553d) {
   const g = new THREE.Group(), m = mats();
   g.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 2.3, 8), 0, 1.15, 0), m.wood));
   const can = new THREE.ConeGeometry(1.25, 0.42, 12, 1, true).toNonIndexed();
@@ -502,7 +485,7 @@ function gingham() {
   }, [2, 2]);
   return TEX.gingham;
 }
-export function makeJam() {
+function old_makeJam() {
   if (!GEO.jar) {
     const prof = [[0, 0], [0.085, 0], [0.095, 0.012], [0.095, 0.15], [0.08, 0.17], [0.075, 0.19]].map(([r, y]) => new THREE.Vector2(r, y));
     GEO.jar = new THREE.LatheGeometry(prof, 28);
@@ -525,4 +508,223 @@ export function makeJam() {
   g.add(mesh(GEO.label, MAT.label, false)); g.add(mesh(GEO.lid, MAT.lid)); g.add(mesh(GEO.band, MAT.string, false));
   g.userData.kind = 'jam';
   return g;
+}
+
+// =====================================================================
+// Toy-farm art (from the Design art pack, art.js): chunky bevelled shapes, flat bright colours.
+// Static pieces are merged into one vertex-coloured mesh each, so phones draw them quickly.
+// =====================================================================
+import * as OB from './art.js';
+export const VC = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
+const _m4 = new THREE.Matrix4();
+// Merge every plain mesh under root into a few vertex-coloured meshes. keep(mesh) = leave that mesh as its own object.
+export function bakeStatic(root, keep = () => false) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const buckets = {}, kept = [];
+  root.traverse((o) => {
+    if (!o.isMesh || o === root) return;
+    const m = o.material;
+    if (Array.isArray(m) || o.isInstancedMesh || o.isSkinnedMesh || m.transparent || m.map || m.type !== 'MeshStandardMaterial' && m.type !== 'MeshPhysicalMaterial' || (m.emissive && m.emissiveIntensity > 0.3 && m.emissive.getHex() !== 0) || keep(o)) { kept.push(o); return; }
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color') g.deleteAttribute(k);
+    _m4.multiplyMatrices(inv, o.matrixWorld); g.applyMatrix4(_m4);
+    if (m.flatShading || !g.attributes.normal) g.computeVertexNormals();
+    const n = g.attributes.position.count, col = new Float32Array(n * 3), c = m.color;
+    const src = m.vertexColors && g.attributes.color;
+    for (let i = 0; i < n; i++) { col[i * 3] = src ? src.getX(i) * c.r : c.r; col[i * 3 + 1] = src ? src.getY(i) * c.g : c.g; col[i * 3 + 2] = src ? src.getZ(i) * c.b : c.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const key = (o.castShadow ? 'c' : '-') + (o.receiveShadow ? 'r' : '-');
+    (buckets[key] || (buckets[key] = [])).push(g);
+  });
+  const out = new THREE.Group();
+  for (const key of Object.keys(buckets)) {
+    const me = new THREE.Mesh(mergeGeometries(buckets[key], false), VC); me.castShadow = key[0] === 'c'; me.receiveShadow = key[1] === 'r'; out.add(me);
+  }
+  for (const o of kept) { o.updateMatrixWorld(true); _m4.multiplyMatrices(inv, o.matrixWorld); o.parent.remove(o); _m4.decompose(o.position, o.quaternion, o.scale); out.add(o); }
+  return out;
+}
+export function bakeGeo(build) { // one merged geometry from a builder
+  const tmp = new THREE.Group(); build(tmp);
+  const b = bakeStatic(tmp); const geos = [];
+  b.traverse((o) => { if (o.isMesh && o.material === VC) geos.push(o.geometry); });
+  return geos.length > 1 ? mergeGeometries(geos, false) : geos[0];
+}
+// Fit a geometry inside the box an item used to fill, so stacks, trays and shelves still line up.
+function fitGeo(g, min, max) {
+  g.computeBoundingBox(); const b = g.boundingBox, sz = new THREE.Vector3(), c = new THREE.Vector3(); b.getSize(sz); b.getCenter(c);
+  const kxz = Math.min((max[0] - min[0]) / sz.x, (max[2] - min[2]) / sz.z), ky = Math.min((max[1] - min[1]) / sz.y, kxz);
+  g.translate(-c.x, -b.min.y, -c.z); g.scale(kxz, ky, kxz); g.translate((min[0] + max[0]) / 2, min[1], (min[2] + max[2]) / 2);
+  return g;
+}
+const ITEM_BOX = {
+  apple: [[-0.147, -0.132, -0.147], [0.147, 0.187, 0.147]], pie: [[-0.332, 0, -0.33], [0.332, 0.144, 0.33]], bread: [[-0.42, 0, -0.175], [0.42, 0.213, 0.168]],
+  wheat: [[-0.561, 0.001, -0.07], [0.315, 0.12, 0.07]], coin: [[-0.093, -0.018, -0.093], [0.093, 0.018, 0.093]], jam: [[-0.13, 0, -0.13], [0.13, 0.222, 0.13]],
+  berry: [[-0.055, -0.07, -0.055], [0.055, 0.087, 0.055]], egg: [[-0.05, 0, -0.05], [0.05, 0.128, 0.05]], milk: [[-0.058, 0, -0.058], [0.058, 0.297, 0.058]],
+  comb: [[-0.18, 0, -0.115], [0.18, 0.05, 0.115]], custard: [[-0.094, 0, -0.094], [0.094, 0.06, 0.094]], butter: [[-0.079, 0, -0.05], [0.079, 0.075, 0.05]],
+  tart: [[-0.201, 0, -0.201], [0.201, 0.22, 0.201]], honey: [[-0.09, 0, -0.09], [0.09, 0.21, 0.09]], cheese: [[-0.111, 0, -0.111], [0.111, 0.08, 0.111]],
+  cider: [[-0.05, 0, -0.05], [0.05, 0.311, 0.051]]
+};
+const { rb, cyl, sph, add, M, F } = OB;
+const ITEM_BUILD = {
+  apple: (g) => OB.apple(g, 0, 0, 0, 0.13),
+  pie: (g) => OB.pie(g, 0, 0, 0, 1),
+  bread: (g) => OB.bread(g, 0, 0, 0, 1),
+  jam: (g) => OB.jar(g, 0, 0, 0, 1),
+  coin: (g) => cyl(g, 0.15, 0.15, 0.05, '#F7C232', 0, 0, 0, 20),
+  wheat: (g) => { // a tied sheaf lying on its side
+    for (let i = 0; i < 7; i++) { const z = (i % 3 - 1) * 0.05, y = Math.floor(i / 3) * 0.05; cyl(g, 0.018, 0.018, 0.62, '#E6B84A', -0.05, y, z, 5, { rz: Math.PI / 2 }); add(g, new THREE.CapsuleGeometry(0.05, 0.16, 3, 6), F('#F4C843'), 0.32, y, z, { rz: Math.PI / 2 }); }
+    cyl(g, 0.11, 0.11, 0.05, '#D8392E', -0.05, 0.04, 0, 10, { rz: Math.PI / 2 });
+  },
+  berry: (g) => { sph(g, 0.1, '#E8302A', 0, 0.1, 0, { s: [1, 1.15, 1] }); add(g, new THREE.ConeGeometry(0.08, 0.06, 5), F('#4FB33A'), 0, 0.22, 0, { rx: Math.PI }); for (let i = 0; i < 6; i++) sph(g, 0.012, '#FFE07A', Math.cos(i) * 0.09, 0.08 + (i % 3) * 0.04, Math.sin(i) * 0.09); },
+  egg: (g) => sph(g, 0.1, '#FFF4DC', 0, 0.12, 0, { s: [0.85, 1.15, 0.85] }),
+  milk: (g) => { cyl(g, 0.1, 0.11, 0.32, '#FFFFFF', 0, 0.16, 0, 16); cyl(g, 0.06, 0.1, 0.1, '#FFFFFF', 0, 0.37, 0, 16); cyl(g, 0.065, 0.065, 0.06, '#3C7FD6', 0, 0.45, 0, 14); rb(g, 0.14, 0.1, 0.02, '#3C7FD6', 0, 0.16, 0.105, 0.01); },
+  comb: (g) => { rb(g, 0.5, 0.08, 0.32, '#E7A21A', 0, 0.04, 0, 0.03); for (let i = 0; i < 6; i++) cyl(g, 0.055, 0.055, 0.03, '#F7C23E', -0.16 + (i % 3) * 0.16, 0.09, -0.07 + Math.floor(i / 3) * 0.14, 6); },
+  custard: (g) => { cyl(g, 0.3, 0.24, 0.12, '#D98A3A', 0, 0.06, 0, 18); cyl(g, 0.26, 0.26, 0.05, '#FFE07A', 0, 0.12, 0, 18); sph(g, 0.05, '#E8302A', 0, 0.16, 0); },
+  butter: (g) => { rb(g, 0.4, 0.04, 0.28, '#DDEBF5', 0, 0.02, 0, 0.015); rb(g, 0.3, 0.16, 0.18, '#F9D65A', 0, 0.12, 0, 0.04); },
+  tart: (g) => { cyl(g, 0.3, 0.25, 0.12, '#B5622D', 0, 0.06, 0, 20); cyl(g, 0.27, 0.27, 0.05, '#F2B65A', 0, 0.13, 0, 20); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; sph(g, 0.06, '#E8302A', Math.cos(a) * 0.16, 0.18, Math.sin(a) * 0.16, { s: [1, 1.15, 1] }); } sph(g, 0.07, '#E8302A', 0, 0.19, 0); },
+  honey: (g) => { OB.jar(g, 0, 0, 0, 1, '#F0A21C'); },
+  cheese: (g) => { cyl(g, 0.3, 0.3, 0.22, '#F6C640', 0, 0.11, 0, 18); cyl(g, 0.28, 0.28, 0.02, '#FCE07A', 0, 0.225, 0, 18); },
+  cider: (g) => { cyl(g, 0.1, 0.1, 0.36, '#C7782A', 0, 0.18, 0, 14); cyl(g, 0.05, 0.09, 0.1, '#C7782A', 0, 0.41, 0, 14); cyl(g, 0.055, 0.055, 0.06, '#3E9A30', 0, 0.48, 0, 12); rb(g, 0.15, 0.12, 0.02, '#FFF6E6', 0, 0.18, 0.1, 0.01); }
+};
+const ITEM_GEO = {};
+export function makeToyItem(kind) {
+  if (!ITEM_BUILD[kind]) return null;
+  if (!ITEM_GEO[kind]) ITEM_GEO[kind] = fitGeo(bakeGeo(ITEM_BUILD[kind]), ...ITEM_BOX[kind]);
+  const grp = new THREE.Group(); const me = new THREE.Mesh(ITEM_GEO[kind], VC); me.castShadow = true; me.receiveShadow = true; grp.add(me);
+  grp.userData.kind = kind;
+  return grp;
+}
+export function makeApple() { return makeToyItem('apple'); }
+export function makePie() { return makeToyItem('pie'); }
+export function makeBread() { return makeToyItem('bread'); }
+export function makeWheatBundle() { return makeToyItem('wheat'); }
+export function makeJam() { return makeToyItem('jam'); }
+export function makeCoin() { const g = makeToyItem('coin'); const m = g.children[0]; g.remove(m); m.receiveShadow = false; return m; }
+export function makeItem(kind) { return makeToyItem(kind); }
+
+// ---------- props ----------
+const bakeProp = (build) => { const g = new THREE.Group(); build(g); return bakeStatic(g); };
+export function makeBasket(scale = 1) {
+  return bakeProp((g) => { cyl(g, 0.42 * scale, 0.32 * scale, 0.32 * scale, '#D9A16A', 0, 0.16 * scale, 0, 18); cyl(g, 0.44 * scale, 0.44 * scale, 0.06 * scale, '#B9773F', 0, 0.32 * scale, 0, 18); cyl(g, 0.38 * scale, 0.38 * scale, 0.02 * scale, '#8B5A34', 0, 0.3 * scale, 0, 18); });
+}
+export function makeBarrel() {
+  return bakeProp((g) => { cyl(g, 0.34, 0.3, 0.85, '#C9884C', 0, 0.425, 0, 16); for (const y of [0.15, 0.7]) cyl(g, 0.36, 0.36, 0.07, '#7A4C2C', 0, y, 0, 16); cyl(g, 0.3, 0.3, 0.02, '#E3A462', 0, 0.86, 0, 16); });
+}
+export function makeCrate(w = 0.6, h = 0.45, d = 0.45) {
+  return bakeProp((g) => { rb(g, w, h, d, '#C9884C', 0, h / 2, 0, 0.05); rb(g, w + 0.02, 0.07, d + 0.02, '#9A6237', 0, h - 0.04, 0, 0.02); rb(g, w * 0.8, 0.06, 0.02, '#9A6237', 0, h / 2, d / 2 + 0.005, 0.01); });
+}
+export function makeTable(w = 1.2, d = 0.7, h = 0.78, m2) {
+  const top = m2 && m2.color ? '#' + m2.color.getHexString() : '#E3A462';
+  return bakeProp((g) => { rb(g, w, 0.1, d, top, 0, h - 0.03, 0, 0.04); for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) rb(g, 0.1, h - 0.05, 0.1, '#9A6237', x * (w / 2 - 0.09), (h - 0.05) / 2, z * (d / 2 - 0.09), 0.03); });
+}
+export function makeChair() {
+  return bakeProp((g) => { rb(g, 0.44, 0.08, 0.44, '#E3A462', 0, 0.46, 0, 0.03); for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) rb(g, 0.07, 0.44, 0.07, '#9A6237', x * 0.17, 0.22, z * 0.17, 0.02); rb(g, 0.44, 0.42, 0.07, '#C9884C', 0, 0.72, -0.19, 0.03); });
+}
+export function makeLamp() {
+  const g = new THREE.Group();
+  cyl(g, 0.06, 0.08, 2.3, '#4A3A30', 0, 1.15, 0, 8); rb(g, 0.42, 0.06, 0.06, '#4A3A30', 0.16, 2.28, 0, 0.02);
+  rb(g, 0.22, 0.26, 0.22, M('#FFE9A8', { emissive: '#FFD45A', emissiveIntensity: 0.8 }), 0.34, 2.05, 0, 0.04); add(g, new THREE.ConeGeometry(0.17, 0.12, 4), M('#4A3A30'), 0.34, 2.24, 0, { ry: Math.PI / 4 });
+  return bakeStatic(g);
+}
+export function makeBench() {
+  return bakeProp((g) => { rb(g, 1.6, 0.1, 0.42, '#E3A462', 0, 0.45, 0, 0.04); rb(g, 1.6, 0.3, 0.08, '#C9884C', 0, 0.75, -0.2, 0.04); for (const x of [-0.65, 0.65]) rb(g, 0.1, 0.42, 0.38, '#9A6237', x, 0.21, 0, 0.03); });
+}
+export function makeUmbrella(color = 0xe8392f) {
+  const g = new THREE.Group();
+  cyl(g, 0.04, 0.04, 2.3, '#9A6237', 0, 1.15, 0, 8);
+  for (let i = 0; i < 8; i++) add(g, new THREE.ConeGeometry(1.2, 0.45, 8, 1, false, i * Math.PI / 4, Math.PI / 4), M(i % 2 ? '#FFF6E6' : '#' + new THREE.Color(color).getHexString()), 0, 2.2, 0);
+  sph(g, 0.07, '#9A6237', 0, 2.45, 0);
+  return bakeStatic(g);
+}
+
+// ---------- people: chibi characters with big heads ----------
+const SKIN2 = ['#F6C8A0', '#F1B98E', '#E3A47A', '#B9784C', '#8A5636', '#FAD7B8'];
+const HAIR2 = ['#7A4220', '#2A1A10', '#E8B04A', '#B5562E', '#5A3A22', '#C9C0B8'];
+const SHIRT2 = ['#F08A3C', '#8A62D6', '#E5486A', '#2FA6A0', '#3C7FD6', '#F2C94C', '#45A53A', '#FF7FA6'];
+const PANTS2 = ['#3A3554', '#2F4A7A', '#5A3A2A', '#3A5A3A', '#4A4A58'];
+const hexOf = (c, d) => (c == null ? d : typeof c === 'number' ? '#' + c.toString(16).padStart(6, '0') : c);
+const PERSON_SCALE = 1.2;
+export function makePerson(opts = {}) {
+  const r = rand(opts.seed ?? 1); const pick = (a) => a[(r() * a.length) | 0];
+  const skin = hexOf(opts.skin, pick(SKIN2)), hair = hexOf(opts.hair, pick(HAIR2)), shirt = hexOf(opts.shirt, pick(SHIRT2)), pants = hexOf(opts.pants, pick(PANTS2));
+  const style = opts.hairStyle ?? ((r() * 4) | 0); // 0 short, 1 bun + dress, 2 long, 3 straw hat
+  const dress = opts.dress ?? (style === 1 || (style === 2 && r() > 0.5));
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const H = opts.height ?? (0.94 + r() * 0.1), k = PERSON_SCALE * H; body.scale.setScalar(k);
+  const HIP = 0.37;
+  const hips = new THREE.Group(); hips.position.y = HIP; body.add(hips);
+  const legs = [], arms = [];
+  for (const sd of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(sd * 0.12, 0, 0); hips.add(hip);
+    const kn = new THREE.Group(); hip.add(kn);
+    rb(kn, 0.17, 0.3, 0.2, pants, 0, -0.15, 0, 0.06); rb(kn, 0.2, 0.1, 0.28, '#4A2E1E', 0, -0.31, 0.04, 0.04);
+    legs.push({ hip, kn });
+  }
+  const torso = new THREE.Group(); hips.add(torso);
+  const tb = new THREE.Group(); torso.add(tb); // static torso parts, merged below
+  add(tb, new THREE.CapsuleGeometry(0.3, 0.28, 6, 14), M(shirt), 0, 0.31, 0, { s: [1, 1, 0.85] });
+  if (opts.apron) { rb(tb, 0.46, 0.42, 0.06, '#FFFFFF', 0, 0.25, 0.25, 0.04); rb(tb, 0.06, 0.2, 0.05, '#FFFFFF', -0.14, 0.53, 0.2, 0.02); rb(tb, 0.06, 0.2, 0.05, '#FFFFFF', 0.14, 0.53, 0.2, 0.02); }
+  if (dress) add(tb, new THREE.ConeGeometry(0.42, 0.55, 14, 1, true), M(shirt), 0, 0.13, 0);
+  const head = new THREE.Group(); head.position.y = 0.93; torso.add(head);
+  const hb = new THREE.Group(); head.add(hb);
+  sph(hb, 0.36, skin, 0, 0, 0);
+  for (const sx of [-1, 1]) { sph(hb, 0.05, '#2A1A10', sx * 0.13, 0.03, 0.32); sph(hb, 0.016, '#FFFFFF', sx * 0.13 + 0.015, 0.05, 0.365); sph(hb, 0.06, '#FF9A8A', sx * 0.22, -0.08, 0.27, { s: [1, 0.7, 0.4] }); }
+  add(hb, new THREE.TorusGeometry(0.06, 0.016, 6, 12, Math.PI), M('#7A3A2A'), 0, -0.09, 0.33, { rz: Math.PI });
+  sph(hb, 0.045, '#EBA982', 0, -0.03, 0.36);
+  if (opts.hat === true || opts.hat === 'chef') {
+    cyl(hb, 0.27, 0.25, 0.22, '#FFFFFF', 0, 0.33, 0, 18);
+    [[-0.13, 0], [0.13, 0], [0, 0.1], [0, -0.1]].forEach((c) => sph(hb, 0.2, '#FFFFFF', c[0], 0.5, c[1])); sph(hb, 0.2, '#FFFFFF', 0, 0.58, 0);
+  } else if (opts.hat === 'cap') {
+    add(hb, new THREE.SphereGeometry(0.37, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(hexOf(opts.capColor, '#F07A2A')), 0, 0.06, 0);
+    rb(hb, 0.42, 0.04, 0.3, hexOf(opts.capColor, '#F07A2A'), 0, 0.08, 0.38, 0.02);
+  } else if (style === 3) {
+    cyl(hb, 0.62, 0.62, 0.04, '#F2C25A', 0, 0.25, 0, 22); cyl(hb, 0.3, 0.33, 0.24, '#F2C25A', 0, 0.37, 0, 18); cyl(hb, 0.335, 0.335, 0.07, pick(['#D8392E', '#3C7FD6', '#45A53A']), 0, 0.3, 0, 18);
+  } else {
+    add(hb, new THREE.SphereGeometry(0.385, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2.1), M(hair), 0, 0.03, -0.02);
+    if (style === 1) sph(hb, 0.16, hair, 0, 0.4, -0.12);
+    if (style === 2) add(hb, new THREE.CapsuleGeometry(0.22, 0.2, 4, 10), M(hair), 0, -0.12, -0.2, { s: [1.5, 1, 0.7] });
+  }
+  for (const sd of [-1, 1]) {
+    const sh = new THREE.Group(); sh.position.set(sd * 0.33, 0.48, 0); torso.add(sh);
+    const el = new THREE.Group(); sh.add(el);
+    add(el, new THREE.CapsuleGeometry(0.08, 0.26, 4, 8), M(shirt), 0, -0.18, 0); sph(el, 0.09, skin, 0, -0.38, 0);
+    sh.rotation.z = sd * 0.25;
+    arms.push({ sh, el, sd });
+  }
+  // merge each rigid part so a person is only a handful of draw calls
+  const bakeInto = (grp) => { const b = bakeStatic(grp); while (grp.children.length) grp.remove(grp.children[0]); for (const c of [...b.children]) grp.add(c); };
+  for (const l of legs) bakeInto(l.kn);
+  bakeInto(tb); bakeInto(hb); for (const a of arms) bakeInto(a.el);
+  // the carry tray, held out in front of the chest
+  const tray = new THREE.Group(); tray.position.set(0, 0.95 * k, 0.58 * k); tray.scale.setScalar(1.25); root.add(tray);
+  const board = bakeProp((g) => rb(g, 0.5, 0.05, 0.38, '#B9773F', 0, -0.025, 0, 0.02)); tray.add(board);
+  tray.visible = false;
+  root.userData = { body, hips, torso, head, arms, legs, tray, phase: 0, H, k, sit: 0, idle: r() * 6, HIP };
+  return root;
+}
+// Walk cycle driven by distance travelled so feet never slide; a gentle bob when standing still.
+export function animatePerson(p, speed, dt, carrying, sitting = false) {
+  const u = p.userData;
+  const s = THREE.MathUtils.clamp(speed / 3.6, 0, 1);
+  u.phase += speed * dt * (Math.PI * 2 / 1.05);
+  u.idle += dt * (Math.PI * 2 / 1.2);
+  const ph = u.phase, sw = 0.7 * s;
+  u.sit += ((sitting ? 1 : 0) - u.sit) * Math.min(1, dt * 8);
+  const sit = u.sit;
+  u.legs.forEach((l, i) => { l.hip.rotation.x = Math.sin(ph + (i ? Math.PI : 0)) * sw * (1 - sit) - sit * 1.45; });
+  const bob = Math.abs(Math.sin(ph)) * 0.05 * s + Math.sin(u.idle) * 0.02 * (1 - s);
+  u.hips.position.y = u.HIP + bob - sit * 0.2;
+  u.torso.rotation.x = 0.05 * s;
+  u.torso.rotation.y = Math.sin(ph) * 0.07 * s;
+  u.head.rotation.z = Math.sin(ph) * 0.05 * s;
+  u.arms.forEach((a, i) => {
+    const sw2 = Math.sin(ph + (i ? 0 : Math.PI)) * 0.7 * s;
+    const tx = carrying ? -1.2 : sw2 - sit * 0.4;
+    a.sh.rotation.x += (tx - a.sh.rotation.x) * Math.min(1, dt * 16);
+    a.el.rotation.x = 0;
+    a.sh.rotation.z = a.sd * (carrying ? 0.05 : 0.25);
+  });
+  u.tray.visible = carrying;
+  u.tray.position.y = (0.95 + (bob - sit * 0.2)) * u.k;
 }

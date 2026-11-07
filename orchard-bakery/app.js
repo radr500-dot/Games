@@ -1,10 +1,10 @@
 // Orchard Bakery: a calm 3D bakery-management game.
 // Pick apples and wheat, bake pies and bread, stock the stall, collect coins, build your bakery up.
 import * as THREE from 'three';
-import { RoomEnvironment } from './vendor/RoomEnvironment.js';
 import { makeItem, makePerson, animatePerson, makeCoin, makeBasket, makeUmbrella, makeTable, rand, mats } from './models.js';
 import { buildWorld, updateFieldInstances, SPOTS, FIELD, BOUNDS, PADS, PAD_ORDER, LEVELS, makeTree } from './world.js';
 import { makeFarmItem, makeWagonIcon } from './farm.js';
+import * as OB from './art.js';
 
 const $ = (id) => document.getElementById(id);
 const V3 = THREE.Vector3;
@@ -26,34 +26,29 @@ const DPR = window.devicePixelRatio || 1;
 let pixelRatio = Math.min(DPR, LITE ? 1.5 : 3);
 const MIN_RATIO = Math.min(DPR, LITE ? 1 : 1.75);
 renderer.setPixelRatio(pixelRatio);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.86; // bright and sunny, like a toy farm
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-// a little extra colour after tone mapping, for the bright toy look (labels skip this, they aren't tone mapped)
-THREE.ShaderChunk.tonemapping_fragment = `#if defined( TONE_MAPPING )
-  gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
-  { float lum = dot( gl_FragColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ); gl_FragColor.rgb = max( mix( vec3( lum ), gl_FragColor.rgb, 1.3 ), 0.0 ); }
-#endif`;
+OB.configureRenderer(renderer); // the Design house look: sRGB, no tone mapping, soft shadows
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xe9e7d6, 45, 120);
-const pmrem = new THREE.PMREMGenerator(renderer);
-const envTex = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
-scene.environment = envTex;
-// soften the studio reflections so the outdoor sun leads
+try { await document.fonts.load('700 40px Fredoka'); await document.fonts.load('800 20px Nunito'); } catch (e) { /* fall back to system fonts */ }
 
-const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x7fa456, 1.0); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff2da, 2.7);
-sun.position.set(-12, 22, 10); sun.castShadow = true;
+// house lighting from the art pack: a bright sky fill, a warm ambient and one sun from the top left
+const hemi = new THREE.HemisphereLight(0xffffff, 0x7fa84a, 1.25); scene.add(hemi);
+scene.add(new THREE.AmbientLight(0xfff6e8, 0.35));
+const sun = new THREE.DirectionalLight(0xfff4e0, 2.3);
+sun.position.set(-8, 16, 9); sun.castShadow = true;
 const BIG = !LITE && !matchMedia("(pointer: coarse)").matches && renderer.capabilities.maxTextureSize >= 8192;
 sun.shadow.mapSize.set(BIG ? 4096 : 2048, BIG ? 4096 : 2048);
 Object.assign(sun.shadow.camera, { left: -21, right: 21, top: 19, bottom: -19, near: 1, far: 70 });
-sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 5;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 3;
 scene.add(sun, sun.target);
 
-const camera = new THREE.PerspectiveCamera(40, 1, 0.6, 400);
+const camera = new THREE.PerspectiveCamera(27, 1, 1, 400);
+// the start screen: the Design bakery scene, with its own camera
+const heroScene = new THREE.Scene(), heroCam = new THREE.PerspectiveCamera(OB.CAMERA.hero.fov, 1, 0.5, 200);
+{
+  OB.setSeed(7); OB.hero(heroScene); OB.setSeed(7);
+  const hs = OB.addLighting(heroScene); hs.shadow.mapSize.set(2048, 2048); hs.position.set(-8, 16, 12); hs.target.position.set(0, 0, 0);
+  heroCam.position.set(...OB.CAMERA.hero.position); heroCam.lookAt(...OB.CAMERA.hero.lookAt);
+}
 
 const world = buildWorld(scene);
 
@@ -293,11 +288,10 @@ function burst(center, n = 14, radius = 1.6) {
 const ICON = {};
 function renderIcons() {
   const ir = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-  ir.setSize(256, 256); ir.setPixelRatio(1); ir.outputColorSpace = THREE.SRGBColorSpace; ir.toneMapping = THREE.ACESFilmicToneMapping;
+  ir.setSize(256, 256); ir.setPixelRatio(1); ir.outputColorSpace = THREE.SRGBColorSpace; ir.toneMapping = THREE.NoToneMapping;
   const is = new THREE.Scene();
-  const ip = new THREE.PMREMGenerator(ir); is.environment = ip.fromScene(new RoomEnvironment(ir), 0.04).texture;
-  is.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.2));
-  const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(2, 4, 3); is.add(dl);
+  is.add(new THREE.HemisphereLight(0xffffff, 0x9a8a6a, 1.5), new THREE.AmbientLight(0xfff6e8, 0.4));
+  const dl = new THREE.DirectionalLight(0xfff4e0, 2.2); dl.position.set(-2, 4, 3); is.add(dl);
   const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
   const shot = (name, obj, dir = new V3(0.2, 0.75, 1)) => {
     is.add(obj);
@@ -323,7 +317,7 @@ function renderIcons() {
   shot('wagon', (() => { const w = makeWagonIcon(); w.rotation.y = -0.6; return w; })(), new V3(0.3, 0.45, 1));
   shot('land', (() => { const g = new THREE.Group(); const t = makeTree(77, false).group; t.scale.setScalar(0.7); t.position.set(0.4, 0, -0.4); g.add(t); for (let i = 0; i < 6; i++) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.04), mats().white); p.position.set(-0.9 + i * 0.3, 0.35, 0.5); g.add(p); } const rail = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.03), mats().white); rail.position.set(-0.15, 0.45, 0.53); g.add(rail); const gr = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.06, 24), new THREE.MeshStandardMaterial({ color: 0x8fb86a, roughness: 1 })); g.add(gr); return g; })(), new V3(0.2, 0.5, 1));
   shot('star', (() => { const sh = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + Math.PI / 2, r = i % 2 ? 0.4 : 1; sh[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); } return new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.25, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08 }), mats().gold); })(), new V3(0, 0, 1));
-  ip.dispose(); ir.dispose(); ir.forceContextLoss && ir.forceContextLoss();
+  ir.dispose(); ir.forceContextLoss && ir.forceContextLoss();
   const imgs = {};
   return Promise.all(Object.entries(ICON).map(([k, url]) => new Promise((res) => { const im = new Image(); im.onload = () => res(); im.onerror = () => res(); im.src = url; imgs[k] = im; }))).then(() => imgs);
 }
@@ -340,34 +334,56 @@ function padDef(id) {
   return { pos: d.pos, cost: levelCost(id), name: `${d.name} ${lv(id) + 1}`, icon: d.icon, level: true };
 }
 const padLocked = (id) => (PADS[id]?.lvl || 0) > S.level;
-function drawPad(p) {
-  const c = p.ctx, W = 320, def = padDef(p.id), paid = S.paid[p.id] || 0, left = Math.max(0, def.cost - paid), locked = padLocked(p.id);
-  c.clearRect(0, 0, W, W);
-  roundRect(c, 10, 10, W - 20, W - 20, 46); c.fillStyle = 'rgba(251,246,234,.93)'; c.fill();
-  c.lineWidth = 10; c.setLineDash([26, 16]); c.strokeStyle = '#3f6b45'; c.stroke(); c.setLineDash([]);
-  // progress fill from the bottom
-  c.save(); roundRect(c, 10, 10, W - 20, W - 20, 46); c.clip();
-  c.fillStyle = 'rgba(233,180,76,.45)'; const fh = (W - 20) * (paid / def.cost); c.fillRect(10, W - 10 - fh, W - 20, fh); c.restore();
-  if (IMG[def.icon]) c.drawImage(IMG[def.icon], W / 2 - 66, 26, 132, 132);
-  c.fillStyle = '#2f3b2a'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = `bold ${def.name.length > 15 ? 28 : 34}px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif`; c.fillText(def.name, W / 2, 186);
-  if (locked) {
-    if (IMG.star) c.drawImage(IMG.star, W / 2 - 104, 218, 56, 56);
-    c.font = 'bold 36px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif'; c.textAlign = 'left'; c.fillText(`Level ${def.lvl}`, W / 2 - 40, 248);
-  } else {
-    if (IMG.coin) c.drawImage(IMG.coin, W / 2 - 78, 214, 62, 62);
-    c.font = 'bold 54px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif'; c.textAlign = 'left'; c.fillText(String(left), W / 2 - 8, 248);
-  }
-  if (def.level) { c.fillStyle = '#3f6b45'; roundRect(c, W - 86, 18, 64, 40, 16); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = 'bold 24px ui-rounded, -apple-system, sans-serif'; c.fillText('↑', W - 54, 40); }
-  p.tex.needsUpdate = true;
+// Building spots, as in the Design art: a white dashed square on the grass with a pile of coins,
+// and an upright label pill ("Jam kitchen  (coin) 300"). Standing on it fills the pill with gold.
+const UI_FONT = (w, px) => `${w} ${px}px Fredoka, Nunito, ui-rounded, sans-serif`;
+function pill(c, x, y, w, h, fill, edge = '#3B2A1E') {
+  roundRect(c, x, y + 6, w, h, h / 2); c.fillStyle = edge; c.fill();
+  roundRect(c, x, y, w, h, h / 2); c.fillStyle = fill; c.fill(); c.lineWidth = 6; c.strokeStyle = edge; c.stroke();
 }
+function drawPad(p) {
+  const def = padDef(p.id), paid = S.paid[p.id] || 0, left = Math.max(0, def.cost - paid), locked = padLocked(p.id);
+  { // the ground square
+    const c = p.ctx, W = 320; c.clearRect(0, 0, W, W);
+    roundRect(c, 14, 14, W - 28, W - 28, 26); c.fillStyle = locked ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.3)'; c.fill();
+    c.save(); roundRect(c, 14, 14, W - 28, W - 28, 26); c.clip(); c.fillStyle = 'rgba(247,194,62,.55)'; const fh = (W - 28) * (paid / def.cost); c.fillRect(14, W - 14 - fh, W - 28, fh); c.restore();
+    roundRect(c, 14, 14, W - 28, W - 28, 26); c.lineWidth = 14; c.setLineDash([34, 22]); c.strokeStyle = locked ? 'rgba(255,255,255,.7)' : '#ffffff'; c.stroke(); c.setLineDash([]);
+    p.tex.needsUpdate = true;
+  }
+  { // the label pill
+    const c = p.lctx, W = 640, H = 128; c.clearRect(0, 0, W, H);
+    const name = locked ? `${def.name} · Lv ${def.lvl}` : def.name;
+    c.font = UI_FONT(700, 46); const tw = c.measureText(name).width;
+    c.font = UI_FONT(700, 46); const cw = locked ? 0 : c.measureText(String(left)).width + 62;
+    const iw = locked ? 44 : 0;
+    const w = Math.min(W - 12, tw + cw + iw + 60), x = (W - w) / 2, y = 14, h = 92;
+    pill(c, x, y, w, h, locked ? '#EFE5D3' : '#FFF8EC', locked ? '#8C7A68' : '#3B2A1E');
+    if (!locked && paid > 0) { c.save(); roundRect(c, x, y, w, h, h / 2); c.clip(); c.fillStyle = '#F7C23E'; c.fillRect(x, y, w * (paid / def.cost), h); c.restore(); roundRect(c, x, y, w, h, h / 2); c.lineWidth = 6; c.strokeStyle = '#3B2A1E'; c.stroke(); }
+    let cx = x + 30;
+    c.textBaseline = 'middle'; c.fillStyle = locked ? '#4A3A30' : '#2B1D14';
+    if (locked) { // a little padlock
+      c.strokeStyle = '#4A3A30'; c.lineWidth = 6; c.beginPath(); c.arc(cx + 16, y + 40, 11, Math.PI, 0); c.stroke(); roundRect(c, cx + 2, y + 40, 28, 26, 6); c.fillStyle = '#4A3A30'; c.fill(); cx += iw;
+      c.fillStyle = '#4A3A30';
+    }
+    c.font = UI_FONT(700, 46); c.fillText(name, cx, y + h / 2 + 3); cx += tw + 16;
+    if (!locked) { if (IMG.coin) c.drawImage(IMG.coin, cx, y + 20, 52, 52); c.fillStyle = '#2B1D14'; c.fillText(String(left), cx + 58, y + h / 2 + 3); }
+    if (def.level) { c.font = UI_FONT(700, 40); }
+    p.ltex.needsUpdate = true;
+  }
+}
+const PAD_COINS = (() => { const g = new THREE.Group(); OB.coinPile(g, 0, 0, 0, 7); return g; })();
 function makePad(id) {
   const def = padDef(id);
   const cv = document.createElement('canvas'); cv.width = cv.height = 320;
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.75, 1.75), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
-  m.rotation.x = -Math.PI / 2; m.position.set(def.pos[0], 0.03, def.pos[1]); m.receiveShadow = true;
-  const p = { id, mesh: m, ctx: cv.getContext('2d'), tex, cool: 0, shown: 0 };
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  m.rotation.x = -Math.PI / 2; m.position.set(def.pos[0], 0.05, def.pos[1]); m.renderOrder = 2;
+  const coins = PAD_COINS.clone(); coins.rotation.x = Math.PI / 2; coins.visible = !padLocked(id); m.add(coins);
+  const lc = document.createElement('canvas'); lc.width = 640; lc.height = 128;
+  const ltex = new THREE.CanvasTexture(lc); ltex.colorSpace = THREE.SRGBColorSpace; ltex.anisotropy = 4;
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: ltex, transparent: true, depthWrite: false, toneMapped: false }));
+  label.scale.set(3.7, 0.74, 1); label.position.set(0, 0.95, 1.05); label.renderOrder = 6; m.add(label); // (the pad is laid flat, so its local y is world -z)
+  const p = { id, mesh: m, ctx: cv.getContext('2d'), tex, lctx: lc.getContext('2d'), ltex, label, coins, cool: 0, shown: 0 };
   drawPad(p); scene.add(m); m.scale.setScalar(0.01);
   pads[id] = p; return p;
 }
@@ -394,37 +410,35 @@ function refreshPads() {
 // Ground spots: a big clear icon and a bold label. Honey rings are for putting things in, green rings for picking up.
 const PUT = ['In', 'Stall', 'Sell', 'Orders'];
 function zoneTex(icon, label) {
+  // A white "stand here" ring, as in the Design art, with the item's picture and name inside.
   const S2 = 512, cv = document.createElement('canvas'); cv.width = cv.height = S2; const c = cv.getContext('2d');
-  const put = PUT.some((w) => label.includes(w) || label.endsWith(' in'));
-  c.beginPath(); c.arc(256, 256, 236, 0, Math.PI * 2); c.fillStyle = 'rgba(255,250,238,.9)'; c.fill();
-  c.lineWidth = 22; c.strokeStyle = put ? '#e9b44c' : '#5f9a52'; c.stroke();
-  c.beginPath(); c.arc(256, 256, 214, 0, Math.PI * 2); c.lineWidth = 4; c.strokeStyle = 'rgba(255,255,255,.9)'; c.stroke();
-  c.beginPath(); c.arc(256, 186, 134, 0, Math.PI * 2); c.fillStyle = put ? '#f3dca4' : '#cfe3bd'; c.fill();
-  if (IMG[icon]) c.drawImage(IMG[icon], 116, 46, 280, 280);
-  c.fillStyle = '#2b241c'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = `800 ${label.length > 9 ? 62 : 74}px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif`; c.fillText(label, 256, 384);
-  c.font = '700 40px ui-rounded, -apple-system, "Segoe UI", sans-serif'; c.fillStyle = put ? '#9a6a10' : '#3f6b45';
-  c.fillText(put ? '▼ put here' : '▲ pick up', 256, 444);
+  c.beginPath(); c.arc(256, 256, 240, 0, Math.PI * 2); c.fillStyle = 'rgba(255,255,255,.22)'; c.fill();
+  c.beginPath(); c.arc(256, 256, 222, 0, Math.PI * 2); c.lineWidth = 36; c.strokeStyle = '#ffffff'; c.stroke();
+  if (IMG[icon]) { c.globalAlpha = 0.95; c.drawImage(IMG[icon], 166, 78, 180, 180); c.globalAlpha = 1; }
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = UI_FONT(700, label.length > 9 ? 72 : 86);
+  c.lineJoin = 'round'; c.lineWidth = 16; c.strokeStyle = 'rgba(59,42,30,.9)'; c.strokeText(label, 256, 360, 440); c.fillStyle = '#ffffff'; c.fillText(label, 256, 360, 440);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
-// A small upright sign over each spot, so you can read what it is from any angle; it shows as you come near.
 const signs = [];
 function signTex(icon, label) {
-  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 128; const c = cv.getContext('2d');
-  roundRect(c, 4, 4, 376, 120, 40); c.fillStyle = 'rgba(255,250,240,.96)'; c.fill(); c.lineWidth = 5; c.strokeStyle = 'rgba(122,90,50,.35)'; c.stroke();
-  if (IMG[icon]) c.drawImage(IMG[icon], 14, 12, 104, 104);
-  c.fillStyle = '#2b241c'; c.font = `800 ${label.length > 9 ? 40 : 48}px ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", sans-serif`; c.textBaseline = 'middle'; c.fillText(label, 124, 66);
+  // cream label pill with a dark outline and a hard shadow (Design UI)
+  const cv = document.createElement('canvas'); cv.width = 448; cv.height = 136; const c = cv.getContext('2d');
+  c.font = UI_FONT(700, label.length > 9 ? 44 : 50); const tw = Math.min(300, c.measureText(label).width);
+  const w = tw + 132, x = (448 - w) / 2;
+  pill(c, x, 10, w, 104, '#FFF8EC');
+  if (IMG[icon]) c.drawImage(IMG[icon], x + 14, 18, 88, 88);
+  c.fillStyle = '#2B1D14'; c.textBaseline = 'middle'; c.fillText(label, x + 108, 64, 300);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const zones = {};
 function addZone(name, pos, icon, label, parent = scene) {
   // drawn without lighting or tone mapping so the colours and words stay crisp in full sun
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: zoneTex(icon, label), color: 0xf4f1ea, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 }));
-  m.rotation.x = -Math.PI / 2; m.position.set(pos.x, 0.025, pos.z); m.receiveShadow = true; parent.add(m);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: zoneTex(icon, label), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+  m.rotation.x = -Math.PI / 2; m.position.set(pos.x, 0.05, pos.z); m.renderOrder = 2; m.receiveShadow = true; parent.add(m);
   zones[name] = { pos: new V3(pos.x, 0, pos.z), mesh: m, r: 0.95 };
   if (name !== 'stallIn' && name !== 'cash') {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex(icon, label), transparent: true, depthWrite: false, opacity: 0, toneMapped: false, fog: false }));
-    sp.scale.set(2.0, 0.667, 1); sp.position.set(pos.x, 2.5, pos.z - 0.2); sp.renderOrder = 5; parent.add(sp); signs.push(sp);
+    sp.scale.set(2.6, 0.79, 1); sp.position.set(pos.x, 2.6, pos.z - 0.2); sp.renderOrder = 5; parent.add(sp); signs.push(sp);
   }
 }
 
@@ -434,18 +448,20 @@ const customers = [], queue = [];
 const POOL = [];
 for (let i = 0; i < 16; i++) {
   const p = makePerson({ seed: 100 + i * 17 }); p.visible = false; scene.add(p);
-  const bub = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false })); bub.scale.set(0.85, 0.85, 1); bub.position.y = 2.3; bub.visible = false; p.add(bub);
+  const bub = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false })); bub.scale.set(0.95, 0.95, 1); bub.position.y = 3.25; bub.visible = false; p.add(bub);
   POOL.push({ person: p, bub, busy: false, carry: new Pile(p.userData.tray, trayLayout) });
 }
 const bubbleMats = {};
 function bubbleMat(kind) {
   if (bubbleMats[kind]) return bubbleMats[kind];
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const c = cv.getContext('2d');
-  c.fillStyle = 'rgba(255,255,255,.96)'; c.beginPath(); c.arc(64, 58, 50, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.moveTo(52, 100); c.lineTo(64, 124); c.lineTo(76, 100); c.fill();
-  if (IMG[kind]) c.drawImage(IMG[kind], 22, 16, 84, 84);
+  // a cream speech bubble with a dark outline, showing what the customer wants
+  const cv = document.createElement('canvas'); cv.width = cv.height = 160; const c = cv.getContext('2d');
+  const shape = (dy) => { roundRect(c, 12, 10 + dy, 136, 116, 30); c.moveTo(66, 126 + dy); c.lineTo(80, 148 + dy); c.lineTo(94, 126 + dy); };
+  c.fillStyle = '#3B2A1E'; c.beginPath(); shape(5); c.fill();
+  c.beginPath(); shape(0); c.fillStyle = '#FFF8EC'; c.fill(); c.lineWidth = 6; c.strokeStyle = '#3B2A1E'; c.lineJoin = 'round'; c.stroke();
+  if (IMG[kind]) c.drawImage(IMG[kind], 32, 18, 96, 96);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  return (bubbleMats[kind] = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
+  return (bubbleMats[kind] = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, toneMapped: false }));
 }
 let spawnTimer = 2;
 function spawnCustomer() {
@@ -500,7 +516,7 @@ function updateCustomers(dt) {
           const it = pile.take();
           scene.remove(it.mesh);
           c.carry.add(it.kind, it.wp, 0.3);
-          const pr = price(it.kind); S.sold++; S.stats.sold[it.kind] = (S.stats.sold[it.kind] || 0) + 1; addXP(1 + Math.floor(BASE_PRICE[it.kind] / 10));
+          const pr = price(it.kind); S.sold++; floatNum(c.pos.clone().add(new V3(0, 2.9, 0)), pr); S.stats.sold[it.kind] = (S.stats.sold[it.kind] || 0) + 1; addXP(1 + Math.floor(BASE_PRICE[it.kind] / 10));
           // coins hop from the customer to the cash barrel
           for (let k = 0; k < 3; k++) after(k * 0.07, () => { const coin = makeCoin(); fly(coin, c.pos.clone().add(new V3(0, 1.3, 0)), null, A.cash.clone().add(new V3(0, 0.1, 0)), 0.38, () => { S.cash += k === 2 ? pr - 2 : 1; syncCash(); sfx.coin(); }, 0.7); });
           c.buys--; c.waitBuy = 0.3; if (c.buys > 0) { c.want = null; }
@@ -961,14 +977,30 @@ function drawPanel() {
 
 // ---------- HUD ----------
 let shownCoins = S.coins;
+// "+N" with a coin, popping up over a customer when they pay
+function floatNum(pos, n) {
+  const v = pos.clone().project(camera); if (v.z > 1) return;
+  const el = document.createElement('div'); el.className = 'ob-float-num';
+  el.innerHTML = `<img src="${ICON.coin || ''}" alt="">+${n}`;
+  el.style.left = `${(v.x + 1) / 2 * innerWidth}px`; el.style.top = `${(1 - v.y) / 2 * innerHeight}px`;
+  $('floats').appendChild(el); setTimeout(() => el.remove(), 950);
+}
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); }
 function updateHud(dt) {
   shownCoins += (S.coins - shownCoins) * Math.min(1, dt * 12); if (Math.abs(S.coins - shownCoins) < 0.5) shownCoins = S.coins;
   $('coinNum').textContent = Math.round(shownCoins);
-  $('carryNum').textContent = `${player.carry.count}/${player.cap}`;
-  $('carryPill').classList.toggle('full', player.carry.count >= player.cap);
+  $('soldNum').textContent = S.sold;
+  const cp = $('carryPill'), nC = player.carry.count;
+  cp.hidden = !playing || nC === 0;
+  if (!cp.hidden) {
+    $('carryNum').textContent = `${nC}/${player.cap}`; cp.classList.toggle('full', nC >= player.cap);
+    const v = player.obj.position.clone().add(new V3(0, 3.05, 0)).project(camera);
+    cp.style.transform = `translate(${((v.x + 1) / 2 * innerWidth).toFixed(1)}px, ${((1 - v.y) / 2 * innerHeight).toFixed(1)}px) translate(-50%, -100%)`;
+  }
   updateCarryList(dt);
-  $('lvNum').textContent = S.level; $('xpFill').style.width = `${Math.min(100, S.xp / xpNeed(S.level) * 100)}%`;
+  $('lvNum').textContent = S.level; $('lvNum2').textContent = S.level; $('xpText').textContent = `${S.xp}/${xpNeed(S.level)}`;
+  $('xpFill').style.width = `${Math.min(100, S.xp / xpNeed(S.level) * 100)}%`;
+  const nt = (S.tasks || []).length; const gd = $('goalsDot'); gd.hidden = !nt; gd.textContent = nt;
 }
 // What's on your tray, as little picture chips, plus a note when you've set everything down.
 let carryKey = '', lastCount = 0, emptyT = 0;
@@ -1036,7 +1068,7 @@ function updateHint(dt, moving) {
 // ---------- input: thumb joystick + keys ----------
 const keys = new Set();
 const joy = { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
-const JR = 56;
+const JR = 40;
 window.addEventListener('keydown', (e) => { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault(); keys.add(e.key.toLowerCase()); });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear());
@@ -1085,7 +1117,9 @@ let fov = 40;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h;
-  fov = camera.aspect < 0.9 ? 40 : 32; // a narrower lens looks like a tabletop model camera.fov = fov; camera.updateProjectionMatrix();
+  heroCam.aspect = w / h; heroCam.fov = OB.CAMERA.hero.fov * (heroCam.aspect < 0.7 ? 1 : 0.8); heroCam.updateProjectionMatrix();
+  fov = (camera.aspect < 0.9 ? OB.CAMERA.phone : OB.CAMERA.desktop).fov; // long, narrow lens: the tabletop look from the Design art
+  camera.fov = fov; camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
 function camDistance() {
@@ -1098,8 +1132,8 @@ function updateCamera(dt, snap) {
   // the camera leads a little in the direction you're walking, so you see where you're going
   lookAhead.lerp(new V3(player.vel.x, 0, player.vel.z).multiplyScalar(0.32), snap ? 1 : 1 - Math.exp(-2.5 * dt));
   const target = player.obj.position.clone().add(new V3(0, 0.8, 0)).add(lookAhead);
-  const d = camDistance(), el = THREE.MathUtils.degToRad(50);
-  const want = target.clone().add(new V3(0, Math.sin(el) * d, Math.cos(el) * d));
+  const off = (camera.aspect < 0.9 ? OB.CAMERA.phone : OB.CAMERA.desktop).offset;
+  const want = target.clone().add(new V3(off[0], off[1], off[2]).multiplyScalar(zoom));
   const k = snap ? 1 : 1 - Math.exp(-6 * dt);
   camTarget.lerp(target, k); camPos.lerp(want, k);
   camera.position.copy(camPos); camera.lookAt(camTarget);
@@ -1195,7 +1229,7 @@ function updateWorld(dt, t) {
 }
 
 // The sun's shadow box travels with you, so the whole bigger farm keeps soft shadows.
-const SUN_OFF = new V3(-12, 22, 10);
+const SUN_OFF = new V3(-8, 16, 9);
 function followSun() {
   const c = playing ? player.obj.position : new V3(0, 0, 0), step = 0.25;
   const x = Math.round(c.x / step) * step, z = Math.round(c.z / step) * step;
@@ -1203,7 +1237,7 @@ function followSun() {
 }
 
 // ---------- main loop ----------
-let playing = false, last = performance.now(), frames = 0, slow = 0;
+let playing = false, last = performance.now(), frames = 0, slow = 0, keyHintDone = false;
 function update(dt, t) {
   if (playing) {
     const [ix, iy] = inputVec();
@@ -1215,6 +1249,7 @@ function update(dt, t) {
     interact(player, dt);
     updateCamera(dt);
     updateHint(dt, !!(ix || iy));
+    if ((ix || iy) && !keyHintDone) { keyHintDone = true; setTimeout(() => { $('keyHint').hidden = true; }, 1500); }
   } else {
     animatePerson(player.obj, 0, dt, player.carry.count > 0);
     orbitCamera(dt);
@@ -1238,7 +1273,7 @@ function frame(now) {
   if (frames === 120) { if (slow > 84 && pixelRatio > MIN_RATIO + 0.01) { pixelRatio = Math.max(MIN_RATIO, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); } frames = 0; slow = 0; }
   update(dt, simT);
   if (window.__camOverride) window.__camOverride(camera);
-  renderer.render(scene, camera);
+  if (playing || window.__forceGame) renderer.render(scene, camera); else renderer.render(heroScene, heroCam);
   requestAnimationFrame(frame);
 }
 
@@ -1298,10 +1333,11 @@ $('panelSound').addEventListener('click', () => $('soundBtn').click());
 $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; setSoundBtn(); save(); if (S.sound) tone(660, 0.1); });
 $('playBtn').addEventListener('click', () => {
   playing = true; $('start').hidden = true; $('hud').hidden = false; $('hint').hidden = false; carryKey = '-';
+  if (!keyHintDone && !matchMedia('(pointer: coarse)').matches) $('keyHint').hidden = false;
   updateCamera(0, true); camPos.copy(camera.position);
   if (S.sound) { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { /* ignore */ } }
 });
-$('menuBtn').addEventListener('click', () => { save(); playing = false; $('panel').hidden = true; $('carryList').hidden = true; $('start').hidden = false; $('hud').hidden = true; $('hint').hidden = true; joy.active = false; $('joy').classList.remove('on'); setPlayLabel(); });
+$('menuBtn').addEventListener('click', () => { save(); playing = false; $('keyHint').hidden = true; $('carryPill').hidden = true; $('panel').hidden = true; $('carryList').hidden = true; $('start').hidden = false; $('hud').hidden = true; $('hint').hidden = true; joy.active = false; $('joy').classList.remove('on'); setPlayLabel(); });
 $('resetBtn').addEventListener('click', () => {
   if (!confirm('Start a brand new bakery? Your coins and buildings will be cleared.')) return;
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
@@ -1311,7 +1347,7 @@ function openPanel() { drawPanel(); $('panel').hidden = false; $('goalsDot').hid
 $('goalsBtn').addEventListener('click', openPanel); $('lvPill').addEventListener('click', openPanel);
 $('panelClose').addEventListener('click', () => { $('panel').hidden = true; });
 $('panel').addEventListener('click', (e) => { if (e.target.id === 'panel') $('panel').hidden = true; });
-function setPlayLabel() { $('playBtn').textContent = (S.sold > 0 || Object.keys(S.unlocked).length) ? 'Continue' : 'Open the bakery'; }
+function setPlayLabel() { $('playLabel').textContent = (S.sold > 0 || Object.keys(S.unlocked).length) ? 'Continue' : 'Play'; }
 
 resize();
 renderIcons().then((imgs) => {

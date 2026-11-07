@@ -4,8 +4,10 @@
 import * as THREE from 'three';
 import {
   rand, fbm, noise3, paint, displace, at, mesh, merge, canvasTex, speckle, mats,
-  makeBasket, makeBarrel, makeCrate, makeTable, makeJam
+  makeBasket, makeBarrel, makeCrate, makeTable, makeJam, makeToyItem, bakeStatic, bakeGeo, VC
 } from './models.js';
+import * as OB from './art.js';
+const { rb, cyl, sph, add: oadd, G: OG, M: OM, F: OF } = OB;
 
 const V3 = THREE.Vector3;
 const C = (h) => new THREE.Color(h);
@@ -67,35 +69,10 @@ function plankTex(color) {
 }
 export function farmMats() {
   if (MAT.berry) return MAT;
-  MAT.berry = new THREE.MeshPhysicalMaterial({ map: berryTex(), roughness: 0.32, clearcoat: 0.7, clearcoatRoughness: 0.25 });
-  MAT.calyx = std({ color: 0x4f8f36, roughness: 0.6, side: THREE.DoubleSide });
-  MAT.egg = std({ vertexColors: true, roughness: 0.55 });
-  MAT.glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, transparent: true, opacity: 0.28, clearcoat: 1, depthWrite: false });
-  MAT.milk = std({ color: 0xfdfbf4, roughness: 0.25 });
-  MAT.foil = std({ color: 0xd8dde2, metalness: 0.9, roughness: 0.3 });
-  MAT.comb = std({ map: combTex(), roughness: 0.3 });
-  MAT.pastry = std({ vertexColors: true, roughness: 0.66 });
-  MAT.custard = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.3, clearcoat: 0.5 });
-  MAT.butter = std({ color: 0xf5dc78, roughness: 0.42 });
-  MAT.paper = std({ map: labelTex('Butter', '#f4efe2', '#3f6b45', 'fresh churned'), roughness: 0.85 });
-  MAT.paperPlain = std({ color: 0xf4efe2, roughness: 0.85 });
-  MAT.cream = std({ color: 0xfbf3df, roughness: 0.5 });
-  MAT.honey = new THREE.MeshPhysicalMaterial({ color: 0xd8861a, roughness: 0.12, clearcoat: 1, emissive: 0x4a2400, emissiveIntensity: 0.25 });
-  MAT.honeyLabel = std({ map: labelTex('Honey', '#2f3a33', '#f2c94c'), roughness: 0.7 });
-  MAT.lid = std({ color: 0xd9a530, metalness: 0.85, roughness: 0.3 });
-  MAT.feather = std({ vertexColors: true, roughness: 0.92 });
-  MAT.comb2 = std({ color: 0xd2342c, roughness: 0.6 });
-  MAT.beak = std({ color: 0xe8a63a, roughness: 0.5 });
-  MAT.eye = std({ color: 0x15100c, roughness: 0.2 });
-  MAT.hide = std({ vertexColors: true, roughness: 0.85 });
-  MAT.muzzle = std({ color: 0xd9a090, roughness: 0.6 });
-  MAT.horn = std({ color: 0xe9dfc8, roughness: 0.5 });
-  MAT.hoof = std({ color: 0x2a221c, roughness: 0.6 });
-  MAT.redBarn = std({ map: plankTex('#a8402f'), roughness: 0.85 });
-  MAT.coop = std({ map: plankTex('#c9a072'), roughness: 0.85 });
-  MAT.straw = std({ map: strawTex(), roughness: 1 });
-  MAT.water = new THREE.MeshPhysicalMaterial({ color: 0x4f8a96, roughness: 0.06, metalness: 0.1, clearcoat: 1, transparent: true, opacity: 0.88 });
-  MAT.metal = std({ color: 0xb8bcc0, metalness: 0.85, roughness: 0.35 });
+  const S = (c, o) => std(Object.assign({ color: c, roughness: 0.85, metalness: 0 }, o || {}));
+  Object.assign(MAT, { berry: S(0xe8302a), calyx: S(0x4fb33a), egg: S(0xfff4dc), milk: S(0xffffff), foil: S(0xdde4ea), comb: S(0xe7a21a), pastry: S(0xd98a3a), custard: S(0xffe07a), butter: S(0xf9d65a), cream: S(0xfff6e6),
+    honey: S(0xf0a21c), lid: S(0xf7c23e), feather: S(0xffffff), comb2: S(0xe8302a), beak: S(0xf7a21c), eye: S(0x2a1a10), hide: S(0xffffff), muzzle: S(0xffb3b0), horn: S(0xf2d27a), hoof: S(0x5a3a28),
+    redBarn: S(0xd8392e), coop: S(0xfff1d6), straw: S(0xf2c25a), water: S(0x5cc3e8, { roughness: 0.3 }), metal: S(0xc9c3b3) });
   return MAT;
 }
 
@@ -117,43 +94,10 @@ function berryGeo() {
   GEO.berry = { body, cap };
   return GEO.berry;
 }
-export function makeBerry() {
-  const g = berryGeo(), m = farmMats(), grp = new THREE.Group();
-  grp.add(mesh(g.body, m.berry), mesh(g.cap, m.calyx, false));
-  grp.userData.kind = 'berry';
-  return grp;
-}
-export function makeEgg() {
-  if (!GEO.egg) {
-    const pts = []; for (let i = 0; i <= 16; i++) { const t = i / 16, y = -Math.cos(Math.PI * t); pts.push(new V3(Math.sin(Math.PI * t) * (1 - 0.13 * y) * 0.05, y * 0.064 + 0.064, 0)); }
-    GEO.egg = new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p.x, p.y)), 22);
-    paint(GEO.egg, (x, y, z, c) => { c.copy(C(0xd9a878)).lerp(C(0xf3dcc0), clamp01(0.5 + fbm(x * 40, y * 40, z * 40) * 0.8)); if (noise3(x * 160, y * 160, z * 160) > 0.62) c.lerp(C(0x9a6a44), 0.5); });
-  }
-  const m = mesh(GEO.egg, farmMats().egg); const grp = new THREE.Group(); grp.add(m); grp.userData.kind = 'egg';
-  return grp;
-}
-export function makeMilk() {
-  if (!GEO.bottle) {
-    const prof = [[0, 0], [0.05, 0], [0.056, 0.008], [0.058, 0.16], [0.052, 0.2], [0.034, 0.24], [0.03, 0.27], [0.034, 0.28], [0.032, 0.29]].map(([r, y]) => new THREE.Vector2(r, y));
-    GEO.bottle = new THREE.LatheGeometry(prof, 24);
-    const fill = [[0, 0.004], [0.052, 0.004], [0.054, 0.16], [0.048, 0.2], [0.03, 0.24], [0.026, 0.262], [0, 0.262]].map(([r, y]) => new THREE.Vector2(r, y));
-    GEO.milk = new THREE.LatheGeometry(fill, 24);
-    GEO.foil = at(new THREE.CylinderGeometry(0.036, 0.036, 0.014, 20), 0, 0.29, 0);
-  }
-  const m = farmMats(), grp = new THREE.Group();
-  grp.add(mesh(GEO.milk, m.milk), mesh(GEO.bottle, m.glass, false, false), mesh(GEO.foil, m.foil, false));
-  grp.userData.kind = 'milk';
-  return grp;
-}
-export function makeComb() {
-  // A honey frame: a wooden frame filled with comb, laid flat.
-  if (!GEO.comb) {
-    GEO.comb = at(new THREE.BoxGeometry(0.3, 0.028, 0.2), 0, 0.016, 0);
-    GEO.frame = merge([at(new THREE.BoxGeometry(0.36, 0.035, 0.02), 0, 0.018, 0.105), at(new THREE.BoxGeometry(0.36, 0.035, 0.02), 0, 0.018, -0.105), at(new THREE.BoxGeometry(0.02, 0.035, 0.2), 0.16, 0.018, 0), at(new THREE.BoxGeometry(0.02, 0.035, 0.2), -0.16, 0.018, 0)]);
-  }
-  const grp = new THREE.Group(); grp.add(mesh(GEO.comb, farmMats().comb), mesh(GEO.frame, mats().wood)); grp.userData.kind = 'comb';
-  return grp;
-}
+export function makeBerry() { return makeToyItem('berry'); }
+export function makeEgg() { return makeToyItem('egg'); }
+export function makeMilk() { return makeToyItem('milk'); }
+export function makeComb() { return makeToyItem('comb'); }
 function fluted(R, H, flutes = 16) {
   const prof = [[0, 0], [R * 0.8, 0], [R * 0.9, 0.01], [R, H * 0.8], [R * 1.05, H], [R * 0.9, H * 1.02]].map(([r, y]) => new THREE.Vector2(r, y));
   const g = new THREE.LatheGeometry(prof, 48);
@@ -161,185 +105,69 @@ function fluted(R, H, flutes = 16) {
   paint(g, (x, y, z, c) => c.copy(C(0xe9b46a)).lerp(C(0x9a5a22), clamp01(0.3 + y / H * 0.5 + fbm(x * 30, y * 30, z * 30) * 0.6)));
   return g;
 }
-export function makeCustard() {
-  if (!GEO.custard) {
-    GEO.custShell = fluted(0.085, 0.045, 14);
-    const top = new THREE.CircleGeometry(0.08, 28); top.rotateX(-Math.PI / 2); top.translate(0, 0.043, 0);
-    paint(top, (x, y, z, c) => { c.copy(C(0xf6d77a)).lerp(C(0xe0a446), clamp01(Math.hypot(x, z) / 0.08 * 0.6 + fbm(x * 50, 0, z * 50) * 0.5)); if (noise3(x * 300, 0, z * 300) > 0.55) c.lerp(C(0x8a4a1c), 0.6); });
-    GEO.custTop = top;
-  }
-  const m = farmMats(), grp = new THREE.Group();
-  grp.add(mesh(GEO.custShell, m.pastry), mesh(GEO.custTop, m.custard, false));
-  grp.userData.kind = 'custard';
-  return grp;
-}
-export function makeButter() {
-  if (!GEO.butter) {
-    const b = new THREE.BoxGeometry(0.15, 0.07, 0.095, 6, 3, 4);
-    displace(b, (v) => { const s = 0.006; v.x -= Math.sign(v.x) * s * (Math.abs(v.y) > 0.03 ? 1 : 0); v.z -= Math.sign(v.z) * s * (Math.abs(v.y) > 0.03 ? 1 : 0); });
-    b.translate(0, 0.036, 0); GEO.butter = b;
-    GEO.wrap = at(new THREE.BoxGeometry(0.156, 0.05, 0.1), 0, 0.025, 0);
-    GEO.string = merge([at(new THREE.BoxGeometry(0.158, 0.006, 0.006), 0, 0.072, 0), at(new THREE.BoxGeometry(0.006, 0.006, 0.098), 0, 0.072, 0)]);
-  }
-  const m = farmMats(), grp = new THREE.Group();
-  const wrapMats = [m.paperPlain, m.paperPlain, m.paperPlain, m.paperPlain, m.paper, m.paper];
-  grp.add(mesh(GEO.butter, m.butter), mesh(GEO.wrap, wrapMats), mesh(GEO.string, std({ color: 0xc8553d, roughness: 0.8 }), false));
-  grp.userData.kind = 'butter';
-  return grp;
-}
-export function makeTart() {
-  if (!GEO.tart) {
-    GEO.tartShell = fluted(0.19, 0.05, 22);
-    const cream = new THREE.CylinderGeometry(0.175, 0.175, 0.02, 32); cream.translate(0, 0.045, 0); GEO.tartCream = cream;
-    const { body, cap } = berryGeo(), bs = [];
-    const ring = (n, rad, y) => { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; bs.push(at(body.clone(), Math.cos(a) * rad, y, Math.sin(a) * rad, Math.PI / 2 - 0.5, -a + Math.PI / 2, 0, 0.9)); } };
-    ring(10, 0.13, 0.07); ring(6, 0.065, 0.08); bs.push(at(body.clone(), 0, 0.095, 0, 0, 0, 0, 0.95));
-    GEO.tartBerries = merge(bs); GEO.tartCap = at(cap.clone(), 0, 0.15, 0, 0, 0, 0, 0.8);
-  }
-  const m = farmMats(), grp = new THREE.Group();
-  grp.add(mesh(GEO.tartShell, m.pastry), mesh(GEO.tartCream, m.cream, false), mesh(GEO.tartBerries, m.berry), mesh(GEO.tartCap, m.calyx, false));
-  grp.userData.kind = 'tart';
-  return grp;
-}
-export function makeHoney() {
-  if (!GEO.hjar) {
-    const prof = [[0, 0], [0.07, 0], [0.085, 0.02], [0.09, 0.08], [0.082, 0.15], [0.06, 0.17], [0.062, 0.185]].map(([r, y]) => new THREE.Vector2(r, y));
-    GEO.hjar = new THREE.LatheGeometry(prof, 26);
-    const fill = [[0, 0.006], [0.068, 0.006], [0.081, 0.022], [0.085, 0.08], [0.078, 0.145], [0, 0.15]].map(([r, y]) => new THREE.Vector2(r, y));
-    GEO.hfill = new THREE.LatheGeometry(fill, 26);
-    GEO.hlid = at(new THREE.CylinderGeometry(0.066, 0.066, 0.03, 24), 0, 0.195, 0);
-    GEO.hlabel = new THREE.CylinderGeometry(0.0905, 0.0905, 0.05, 24, 1, true, -1, 2); GEO.hlabel.translate(0, 0.08, 0);
-  }
-  const m = farmMats(), grp = new THREE.Group();
-  grp.add(mesh(GEO.hfill, m.honey), mesh(GEO.hjar, m.glass, false, false), mesh(GEO.hlid, m.lid), mesh(GEO.hlabel, m.honeyLabel, false));
-  grp.userData.kind = 'honey';
-  return grp;
-}
-export function makeCheese() {
-  // a small farmhouse cheese wheel with a waxed rind and one wedge cut out, so you can see the pale inside
-  if (!GEO.cheese) {
-    const R = 0.11, H = 0.08, cut = 0.9;
-    const rind = new THREE.CylinderGeometry(R, R * 1.02, H, 32, 2, true, cut, Math.PI * 2 - cut);
-    displace(rind, (v) => { const k = 1 - Math.pow(Math.abs(v.y) / (H / 2), 6) * 0.06; v.x *= k; v.z *= k; });
-    rind.translate(0, H / 2, 0); GEO.cheeseRind = rind;
-    const top = new THREE.CircleGeometry(R * 0.97, 32, cut, Math.PI * 2 - cut); top.rotateX(-Math.PI / 2); top.translate(0, H, 0);
-    const bot = top.clone(); bot.translate(0, -H, 0);
-    const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(R * 0.97, 0); shape.lineTo(R * 0.97, H); shape.lineTo(0, H); shape.lineTo(0, 0);
-    const f1 = new THREE.ShapeGeometry(shape); f1.rotateY(-cut); const f2 = new THREE.ShapeGeometry(shape); f2.rotateY(Math.PI);
-    GEO.cheeseFace = merge([top, bot]); GEO.cheeseCut = merge([f1, f2]);
-    paint(GEO.cheeseCut, (x, y, z, c) => c.copy(C(0xf7dc8a)).lerp(C(0xf0c860), clamp01(0.5 + fbm(x * 60, y * 60, z * 60))));
-  }
-  if (!MAT.cheeseRind) {
-    MAT.cheeseRind = new THREE.MeshPhysicalMaterial({ color: 0xb8342a, roughness: 0.35, clearcoat: 0.6 });
-    MAT.cheeseTop = new THREE.MeshPhysicalMaterial({ map: labelTex('Farmhouse', '#b8342a', '#fbe9c4'), roughness: 0.35, clearcoat: 0.6 });
-    MAT.cheeseCut = std({ vertexColors: true, roughness: 0.7, side: THREE.DoubleSide, bumpMap: canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); const r = rand(3); for (let i = 0; i < 26; i++) { c.fillStyle = '#555'; c.beginPath(); c.arc(r() * w, r() * h, 2 + r() * 5, 0, 7); c.fill(); } }), bumpScale: 0.6 });
-  }
-  const grp = new THREE.Group();
-  grp.add(mesh(GEO.cheeseRind, MAT.cheeseRind), mesh(GEO.cheeseFace, MAT.cheeseTop), mesh(GEO.cheeseCut, MAT.cheeseCut));
-  grp.userData.kind = 'cheese';
-  return grp;
-}
-export function makeCider() {
-  // a swing-top bottle of cloudy amber apple cider
-  if (!GEO.cbottle) {
-    const prof = [[0, 0], [0.045, 0], [0.05, 0.008], [0.05, 0.15], [0.045, 0.19], [0.022, 0.235], [0.019, 0.275], [0.022, 0.282], [0.02, 0.29]].map(([r, y]) => new THREE.Vector2(r, y));
-    GEO.cbottle = new THREE.LatheGeometry(prof, 24);
-    const fill = [[0, 0.005], [0.046, 0.005], [0.046, 0.15], [0.041, 0.19], [0.019, 0.232], [0.016, 0.25], [0, 0.25]].map(([r, y]) => new THREE.Vector2(r, y));
-    GEO.cfill = new THREE.LatheGeometry(fill, 24);
-    GEO.ccap = merge([at(new THREE.CylinderGeometry(0.02, 0.022, 0.022, 14), 0, 0.3, 0), at(new THREE.TorusGeometry(0.024, 0.003, 4, 14), 0, 0.272, 0, Math.PI / 2)]);
-    GEO.clabel = new THREE.CylinderGeometry(0.0505, 0.0505, 0.075, 24, 1, true, -1.1, 2.2); GEO.clabel.translate(0, 0.085, 0);
-  }
-  if (!MAT.cider) {
-    MAT.cider = new THREE.MeshPhysicalMaterial({ color: 0xd9902a, roughness: 0.15, clearcoat: 1, emissive: 0x3a1c00, emissiveIntensity: 0.3 });
-    MAT.cglass = new THREE.MeshPhysicalMaterial({ color: 0xc8e0c0, roughness: 0.05, transparent: true, opacity: 0.32, clearcoat: 1, depthWrite: false });
-    MAT.ccap = std({ color: 0xf2efe6, roughness: 0.4 });
-    MAT.clabel = std({ map: labelTex('Cider', '#3f6b4f', '#f3e6d0'), roughness: 0.7 });
-  }
-  const grp = new THREE.Group();
-  grp.add(mesh(GEO.cfill, MAT.cider), mesh(GEO.cbottle, MAT.cglass, false, false), mesh(GEO.ccap, MAT.ccap), mesh(GEO.clabel, MAT.clabel, false));
-  grp.userData.kind = 'cider';
-  return grp;
-}
-export function makeFarmItem(kind) {
-  return ({ berry: makeBerry, egg: makeEgg, milk: makeMilk, comb: makeComb, custard: makeCustard, butter: makeButter, tart: makeTart, honey: makeHoney, cheese: makeCheese, cider: makeCider })[kind]?.();
-}
-
+export function makeCustard() { return makeToyItem('custard'); }
+export function makeButter() { return makeToyItem('butter'); }
+export function makeTart() { return makeToyItem('tart'); }
+export function makeHoney() { return makeToyItem('honey'); }
+export function makeCheese() { return makeToyItem('cheese'); }
+export function makeCider() { return makeToyItem('cider'); }
+export function makeFarmItem(kind) { return makeToyItem(kind); }
 // ---------- animals ----------
 export function makeChicken(seed) {
-  const r = rand(seed), m = farmMats(), g = new THREE.Group();
-  const brown = r() < 0.6;
-  const base = C(brown ? 0xa9582c : 0xf4eee2), dark = C(brown ? 0x6a3218 : 0xd6cdbb), light = C(brown ? 0xcf8a4a : 0xffffff);
-  const feather = (geo) => paint(geo, (x, y, z, c) => c.copy(base).lerp(dark, clamp01(0.35 - y * 2 + fbm(x * 25, y * 25, z * 25) * 0.6)).lerp(light, clamp01(y * 1.2 - 0.35)));
-  const parts = [
-    feather(at(new THREE.SphereGeometry(0.15, 18, 14), 0, 0.27, 0, 0, 0, 0, new V3(0.88, 0.85, 1.25))),
-    feather(at(new THREE.SphereGeometry(0.09, 14, 10), 0, 0.36, 0.11, -0.3, 0, 0, new V3(0.9, 1.25, 0.9))),
-    paint(at(new THREE.SphereGeometry(0.1, 12, 8), 0.12, 0.28, -0.02, 0, 0, 0, new V3(0.3, 0.68, 1.2)), (x, y, z, c) => c.copy(dark)),
-    paint(at(new THREE.SphereGeometry(0.1, 12, 8), -0.12, 0.28, -0.02, 0, 0, 0, new V3(0.3, 0.68, 1.2)), (x, y, z, c) => c.copy(dark))
-  ];
-  for (let i = 0; i < 4; i++) parts.push(paint(at(new THREE.SphereGeometry(0.075, 10, 8), (i - 1.5) * 0.03, 0.41, -0.17, -0.7 + i * 0.05, 0, (i - 1.5) * 0.2, new V3(0.28, 1.15, 0.6)), (x, y, z, c) => c.copy(dark).lerp(C(0x2a1a10), brown ? 0.4 : 0)));
+  // The Design hen: a round white (or golden) body, red comb, orange beak and legs.
+  const r = rand(seed), g = new THREE.Group();
+  const col = r() < 0.7 ? '#FFFFFF' : '#F2C25A';
   const body = new THREE.Group(); g.add(body);
-  body.add(mesh(merge(parts), m.feather));
-  const head = new THREE.Group(); head.position.set(0, 0.44, 0.15); body.add(head);
-  head.add(mesh(paint(at(new THREE.SphereGeometry(0.062, 14, 10), 0, 0.02, 0.02), (x, y, z, c) => c.copy(base).lerp(light, 0.3)), m.feather));
-  for (let i = 0; i < 3; i++) head.add(mesh(at(new THREE.SphereGeometry(0.024 - Math.abs(i - 1) * 0.004, 8, 6), 0, 0.085 + (i === 1 ? 0.01 : 0), -0.01 + i * 0.022), m.comb2, false));
-  head.add(mesh(at(new THREE.SphereGeometry(0.018, 8, 6), 0, -0.025, 0.07, 0, 0, 0, new V3(0.8, 1.4, 0.7)), m.comb2, false));
-  head.add(mesh(at(new THREE.ConeGeometry(0.016, 0.045, 8), 0, 0.015, 0.095, Math.PI / 2), m.beak, false));
-  for (const s of [-1, 1]) head.add(mesh(at(new THREE.SphereGeometry(0.009, 6, 5), s * 0.045, 0.035, 0.05), m.eye, false));
+  const bb = new THREE.Group(); body.add(bb);
+  sph(bb, 0.28, col, 0, 0.32, 0, { s: [1, 0.85, 1.2] }); oadd(bb, new THREE.ConeGeometry(0.16, 0.3, 6), OM(col), 0, 0.42, -0.33, { rx: -1.1 });
+  const head = new THREE.Group(); head.position.set(0, 0.58, 0.22); body.add(head);
+  const hb = new THREE.Group(); head.add(hb);
+  sph(hb, 0.17, col, 0, 0, 0); rb(hb, 0.06, 0.12, 0.16, '#E8302A', 0, 0.18, -0.02, 0.03); oadd(hb, new THREE.ConeGeometry(0.05, 0.12, 6), OM('#F7A21C'), 0, -0.01, 0.2, { rx: Math.PI / 2 });
+  sph(hb, 0.04, '#E8302A', 0, -0.1, 0.13); sph(hb, 0.03, '#2A1A10', -0.09, 0.04, 0.12); sph(hb, 0.03, '#2A1A10', 0.09, 0.04, 0.12);
   const legs = [];
-  for (const s of [-1, 1]) {
-    const leg = new THREE.Group(); leg.position.set(s * 0.05, 0.16, 0.01); g.add(leg);
-    leg.add(mesh(at(new THREE.CylinderGeometry(0.01, 0.012, 0.16, 6), 0, -0.08, 0), m.beak, false));
-    for (const a of [-0.5, 0, 0.5]) leg.add(mesh(at(new THREE.BoxGeometry(0.01, 0.008, 0.06), Math.sin(a) * 0.02, -0.158, 0.025, 0, a, 0), m.beak, false));
-    legs.push(leg);
-  }
-  const s = 0.95 + r() * 0.15; g.scale.setScalar(s);
+  for (const sd of [-1, 1]) { const leg = new THREE.Group(); leg.position.set(sd * 0.08, 0.16, 0); g.add(leg); cyl(leg, 0.02, 0.02, 0.16, '#F7A21C', 0, -0.08, 0, 5); legs.push(leg); }
+  const bakeInto = (grp) => { const b = bakeStatic(grp); while (grp.children.length) grp.remove(grp.children[0]); for (const c of [...b.children]) grp.add(c); };
+  bakeInto(bb); bakeInto(hb); for (const l of legs) bakeInto(l);
+  const s = (0.95 + r() * 0.15) * 0.72; g.scale.setScalar(s);
   g.userData = { body, head, legs, phase: r() * 6, mode: 'idle', t: r() * 2, target: new V3(), speed: 0 };
   return g;
 }
 export function makeCow(seed) {
-  const r = rand(seed), m = farmMats(), g = new THREE.Group();
-  const holstein = r() < 0.55;
-  const off = r() * 10;
-  const coat = (geo) => paint(geo, (x, y, z, c) => {
-    if (holstein) c.set(fbm(x * 1.7 + off, y * 1.7, z * 1.7 - off) > 0.06 ? 0x1f1a18 : 0xf6f2ea);
-    else c.copy(C(0xb57a48)).lerp(C(0x7a4a2a), clamp01(y - 0.9 + fbm(x * 3, y * 3, z * 3) * 0.6)).lerp(C(0xe8cfa8), clamp01(0.7 - y));
-  });
-  const body = coat(at(new THREE.CapsuleGeometry(0.38, 0.9, 8, 20), 0, 1.0, 0, Math.PI / 2, 0, 0, new V3(0.95, 1, 1.05)));
-  const neck = coat(at(new THREE.SphereGeometry(0.3, 16, 12), 0, 1.1, 0.68, 0.4, 0, 0, new V3(0.85, 1, 1.1)));
-  g.add(mesh(merge([body, neck]), m.hide));
-  g.add(mesh(at(new THREE.SphereGeometry(0.13, 14, 10), 0, 0.66, -0.3, 0, 0, 0, new V3(1.1, 0.8, 1.2)), m.muzzle));
-  const head = new THREE.Group(); head.position.set(0, 1.2, 0.86); g.add(head);
-  head.add(mesh(coat(at(new THREE.SphereGeometry(0.2, 18, 14), 0, 0, 0.12, 0.35, 0, 0, new V3(0.78, 0.82, 1.3))), m.hide));
-  head.add(mesh(at(new THREE.SphereGeometry(0.13, 16, 12), 0, -0.14, 0.33, 0.2, 0, 0, new V3(1.05, 0.8, 0.85)), m.muzzle));
-  for (const s of [-1, 1]) {
-    head.add(mesh(at(new THREE.SphereGeometry(0.018, 6, 5), s * 0.045, -0.13, 0.43), m.hoof, false));
-    head.add(mesh(at(new THREE.SphereGeometry(0.022, 8, 6), s * 0.12, 0.06, 0.2), m.eye, false));
-    head.add(mesh(coat(at(new THREE.SphereGeometry(0.08, 10, 8), s * 0.21, 0.08, 0.02, 0, 0, s * 0.5, new V3(1.2, 0.45, 0.7))), m.hide));
-    head.add(mesh(at(new THREE.ConeGeometry(0.025, 0.1, 8), s * 0.1, 0.18, 0.02, 0, 0, -s * 0.6), m.horn, false));
-  }
+  // The Design cow: a chunky white block with dark patches, pink muzzle and little horns.
+  const r = rand(seed), g = new THREE.Group();
+  const patch = r() < 0.5 ? '#2E2420' : '#8B5A34';
+  const bodyG = new THREE.Group(); g.add(bodyG);
+  rb(bodyG, 0.95, 0.7, 1.45, '#FFFFFF', 0, 0.82, 0, 0.25);
+  rb(bodyG, 0.4, 0.4, 0.04, patch, 0.48, 0.9, -0.2, 0.08, { ry: Math.PI / 2 }); rb(bodyG, 0.3, 0.28, 0.04, patch, -0.48, 0.8, 0.25, 0.08, { ry: Math.PI / 2 });
+  rb(bodyG, 0.45, 0.04, 0.4, patch, 0.1, 1.17, -0.35, 0.08);
+  const head = new THREE.Group(); head.position.set(0, 1.12, 0.7); g.add(head);
+  const hb = new THREE.Group(); head.add(hb);
+  rb(hb, 0.62, 0.58, 0.55, '#FFFFFF', 0, 0, 0.18, 0.18); rb(hb, 0.56, 0.24, 0.12, '#FFB3B0', 0, -0.14, 0.47, 0.08);
+  sph(hb, 0.035, '#C2615D', -0.12, -0.13, 0.54); sph(hb, 0.035, '#C2615D', 0.12, -0.13, 0.54);
+  sph(hb, 0.05, '#2A1A10', -0.17, 0.12, 0.45); sph(hb, 0.05, '#2A1A10', 0.17, 0.12, 0.45);
+  oadd(hb, new THREE.ConeGeometry(0.06, 0.2, 6), OM('#F2D27A'), -0.24, 0.36, 0.12, { rz: 0.5 }); oadd(hb, new THREE.ConeGeometry(0.06, 0.2, 6), OM('#F2D27A'), 0.24, 0.36, 0.12, { rz: -0.5 });
+  rb(hb, 0.22, 0.1, 0.12, '#FFFFFF', -0.4, 0.18, 0.1, 0.04, { rz: 0.3 }); rb(hb, 0.22, 0.1, 0.12, '#FFFFFF', 0.4, 0.18, 0.1, 0.04, { rz: -0.3 });
   const legs = [];
-  for (const [x, z] of [[-0.22, 0.5], [0.22, 0.5], [-0.22, -0.5], [0.22, -0.5]]) {
-    const leg = new THREE.Group(); leg.position.set(x, 0.82, z); g.add(leg);
-    leg.add(mesh(coat(at(new THREE.CylinderGeometry(0.075, 0.055, 0.76, 10), 0, -0.38, 0)), m.hide));
-    leg.add(mesh(at(new THREE.CylinderGeometry(0.06, 0.065, 0.07, 10), 0, -0.79, 0), m.hoof));
+  for (const [x, z] of [[-0.32, 0.45], [0.32, 0.45], [-0.32, -0.45], [0.32, -0.45]]) {
+    const leg = new THREE.Group(); leg.position.set(x, 0.5, z); g.add(leg);
+    rb(leg, 0.2, 0.5, 0.2, '#F4EFE6', 0, -0.25, 0, 0.06); rb(leg, 0.22, 0.1, 0.22, '#5A3A28', 0, -0.45, 0, 0.03);
     legs.push(leg);
   }
-  const tail = new THREE.Group(); tail.position.set(0, 1.25, -0.82); g.add(tail);
-  tail.add(mesh(at(new THREE.CylinderGeometry(0.015, 0.02, 0.75, 6), 0, -0.36, -0.02), m.hide));
-  tail.add(mesh(at(new THREE.SphereGeometry(0.05, 8, 6), 0, -0.74, -0.02, 0, 0, 0, new V3(1, 1.6, 1)), holstein ? m.hoof : m.hide));
-  g.scale.setScalar(0.92 + r() * 0.12);
+  const tail = new THREE.Group(); tail.position.set(0, 1.05, -0.75); g.add(tail);
+  cyl(tail, 0.035, 0.035, 0.5, '#FFFFFF', 0, -0.22, -0.05, 6, { rx: 0.2 }); sph(tail, 0.06, patch, 0, -0.48, -0.1);
+  const bakeInto = (grp) => { const b = bakeStatic(grp); while (grp.children.length) grp.remove(grp.children[0]); for (const c of [...b.children]) grp.add(c); };
+  bakeInto(bodyG); bakeInto(hb); bakeInto(tail); for (const l of legs) bakeInto(l);
+  g.scale.setScalar(1.0 + r() * 0.12);
   g.userData = { head, legs, tail, phase: r() * 6, mode: 'graze', t: 2 + r() * 4, target: new V3(), speed: 0 };
   return g;
 }
 function makeDuck(seed) {
-  const g = new THREE.Group(), m = farmMats();
-  const body = paint(at(new THREE.SphereGeometry(0.14, 14, 10), 0, 0.06, 0, 0, 0, 0, new V3(0.85, 0.6, 1.3)), (x, y, z, c) => c.copy(C(0x8a6a4a)).lerp(C(0xd8c8a8), clamp01(-y * 6 + 0.4)));
-  g.add(mesh(body, m.feather));
-  const head = paint(at(new THREE.SphereGeometry(0.065, 12, 10), 0, 0.2, 0.14), (x, y, z, c) => c.set(seed % 2 ? 0x2f6a4a : 0x8a6a4a));
-  g.add(mesh(head, m.feather));
-  g.add(mesh(at(new THREE.BoxGeometry(0.04, 0.015, 0.06), 0, 0.19, 0.22), m.beak, false));
-  g.userData = { a: seed * 2.1, r: 0.9 + (seed % 3) * 0.35, sp: 0.18 + (seed % 2) * 0.08 };
-  return g;
+  const g = new THREE.Group();
+  sph(g, 0.16, seed % 2 ? '#FFFFFF' : '#F2C25A', 0, 0.08, 0, { s: [0.85, 0.65, 1.3] }); sph(g, 0.08, seed % 2 ? '#3E9A30' : '#F2C25A', 0, 0.22, 0.15);
+  rb(g, 0.06, 0.03, 0.08, '#F7A21C', 0, 0.21, 0.25, 0.01); sph(g, 0.018, '#2A1A10', -0.05, 0.25, 0.2); sph(g, 0.018, '#2A1A10', 0.05, 0.25, 0.2);
+  const out = bakeStatic(g);
+  out.userData = { a: seed * 2.1, r: 0.9 + (seed % 3) * 0.35, sp: 0.18 + (seed % 2) * 0.08 };
+  return out;
 }
 function animateChicken(ch, dt, area) {
   const u = ch.userData; u.t -= dt;
@@ -362,7 +190,7 @@ function animateChicken(ch, dt, area) {
   u.body.position.y = sp > 0 ? Math.abs(Math.sin(u.phase)) * 0.015 : 0;
   const peck = u.mode === 'peck' ? Math.max(0, Math.sin(performance.now() / 1000 * 9 + u.phase)) : 0;
   u.body.rotation.x = peck * 0.55;
-  u.head.position.z = 0.15 + (sp > 0 ? Math.sin(u.phase * 2) * 0.02 : 0);
+  u.head.position.z = 0.22 + (sp > 0 ? Math.sin(u.phase * 2) * 0.03 : 0);
 }
 function animateCow(cow, dt, area, time) {
   const u = cow.userData; u.t -= dt;
@@ -385,212 +213,156 @@ function animateCow(cow, dt, area, time) {
 }
 
 // ---------- buildings and plots ----------
-function shed(H, w, d, h, roofColor, wallMat) {
-  // Simple timber building with plank walls and a clay shingle roof.
-  const g = new THREE.Group(), m = mats();
-  g.add(mesh(at(new THREE.BoxGeometry(w + 0.2, 0.2, d + 0.2), 0, 0.1, 0), m.stone));
-  g.add(mesh(at(new THREE.BoxGeometry(w, h, d), 0, 0.2 + h / 2, 0), wallMat));
-  for (const x of [-w / 2, w / 2]) for (const z of [-d / 2, d / 2]) g.add(mesh(at(new THREE.BoxGeometry(0.14, h, 0.14), x, 0.2 + h / 2, z), m.beam));
-  const rise = d * 0.38;
-  const gs = new THREE.Shape(); gs.moveTo(-d / 2, 0); gs.lineTo(d / 2, 0); gs.lineTo(0, rise); gs.lineTo(-d / 2, 0);
-  for (const s of [-1, 1]) { const gm = mesh(new THREE.ShapeGeometry(gs), wallMat); gm.rotation.y = s * Math.PI / 2; gm.position.set(s * (w / 2 + 0.001), 0.2 + h, 0); g.add(gm); }
-  const roof = H.shingleRoof(w, d, rise, roofColor); roof.position.y = 0.2 + h; g.add(roof);
+function shed(H, w, d, h, roofColor, wallColor) {
+  // A chunky toy building: stone footing, painted walls, a pitched roof of two thick slabs.
+  const g = new THREE.Group();
+  const roofHex = '#' + new THREE.Color(roofColor).getHexString();
+  rb(g, w + 0.3, 0.22, d + 0.3, '#C9C3B3', 0, 0.11, 0, 0.06);
+  rb(g, w, h, d, wallColor, 0, 0.2 + h / 2, 0, 0.1);
+  for (const x of [-w / 2, w / 2]) rb(g, 0.16, h, 0.16, '#FFFFFF', x, 0.2 + h / 2, d / 2, 0.03);
+  const rise = d * 0.42, half = Math.hypot(d / 2 + 0.25, rise), ang = Math.atan2(rise, d / 2 + 0.25);
+  const gab = new THREE.Shape(); gab.moveTo(-d / 2, 0); gab.lineTo(d / 2, 0); gab.lineTo(0, rise); gab.lineTo(-d / 2, 0);
+  for (const sd of [-1, 1]) oadd(g, new THREE.ShapeGeometry(gab), OM(wallColor), sd * (w / 2 - 0.02), 0.2 + h, 0, { ry: sd * Math.PI / 2 });
+  rb(g, w + 0.4, 0.2, half, roofHex, 0, 0.2 + h + rise / 2 + 0.05, -(d / 4 + 0.06), 0.05, { rx: -ang });
+  rb(g, w + 0.4, 0.2, half, '#' + new THREE.Color(roofColor).multiplyScalar(0.86).getHexString(), 0, 0.2 + h + rise / 2 + 0.05, d / 4 + 0.06, 0.05, { rx: ang });
   return g;
+}
+function farmSign(text, bg = '#FFF6E6', fg = '#2B1D14') {
+  return canvasTex(512, 160, (c, w, h) => { c.fillStyle = bg; c.fillRect(0, 0, w, h); c.fillStyle = fg; c.font = '700 84px Fredoka, "Nunito", ui-rounded, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, w / 2, h / 2 + 4); });
+}
+function signBoard(g, text, x, y, z, w = 1.4, rx = 0) {
+  rb(g, w + 0.12, w * 0.36, 0.08, '#8B4E2A', x, y, z - 0.03, 0.04, { rx });
+  const m = mesh(at(new THREE.PlaneGeometry(w, w * 0.3), x, y, z + 0.02, rx), new THREE.MeshBasicMaterial({ map: farmSign(text), toneMapped: false }), false, false);
+  g.add(m); m.userData.sign = true;
 }
 function makeHenHouse(H) {
-  const g = new THREE.Group(), m = mats(), fm = farmMats();
-  const coop = new THREE.Group(); coop.position.y = 0.55; g.add(coop);
-  for (const [x, z] of [[-0.9, -0.65], [0.9, -0.65], [-0.9, 0.65], [0.9, 0.65]]) g.add(mesh(at(new THREE.BoxGeometry(0.12, 0.6, 0.12), x, 0.3, z), m.beam));
-  coop.add(mesh(at(new THREE.BoxGeometry(2.0, 1.2, 1.5), 0, 0.6, 0), fm.coop));
-  const rs = new THREE.Shape(); rs.moveTo(-0.75, 0); rs.lineTo(0.75, 0); rs.lineTo(0, 0.6); rs.lineTo(-0.75, 0);
-  for (const s of [-1, 1]) { const gm = mesh(new THREE.ShapeGeometry(rs), fm.coop); gm.rotation.y = s * Math.PI / 2; gm.position.set(s * 1.001, 1.2, 0); coop.add(gm); }
-  const roof = H.shingleRoof(2.0, 1.5, 0.6, 0xb5462f); roof.position.y = 1.2; coop.add(roof);
-  coop.add(mesh(at(new THREE.BoxGeometry(0.42, 0.52, 0.04), 0.45, 0.42, 0.77), m.dark, false));
-  coop.add(mesh(at(new THREE.BoxGeometry(0.5, 0.06, 0.06), 0.45, 0.71, 0.78), m.white), mesh(at(new THREE.BoxGeometry(0.06, 0.58, 0.06), 0.18, 0.42, 0.78), m.white), mesh(at(new THREE.BoxGeometry(0.06, 0.58, 0.06), 0.72, 0.42, 0.78), m.white));
-  // ramp with little cleats
-  g.add(mesh(at(new THREE.BoxGeometry(0.34, 0.03, 1.1), 0.45, 0.32, 1.25, 0.52, 0, 0), m.wood));
-  for (let i = 0; i < 5; i++) g.add(mesh(at(new THREE.BoxGeometry(0.3, 0.02, 0.02), 0.45, 0.12 + i * 0.1, 1.67 - i * 0.18, 0.52, 0, 0), m.woodDark, false));
-  // nest boxes on the side with a hinged lid
-  coop.add(mesh(at(new THREE.BoxGeometry(0.5, 0.45, 1.1), -1.22, 0.3, 0), fm.coop));
-  coop.add(mesh(at(new THREE.BoxGeometry(0.58, 0.04, 1.18), -1.24, 0.56, 0, 0, 0, 0.3), m.woodDark));
-  coop.add(mesh(at(new THREE.PlaneGeometry(0.7, 0.24), -0.4, 1.0, 0.76), std({ map: labelTex('Hens', '#7a4a2e', '#fbf1df'), roughness: 0.6 }), false));
-  return g;
+  const g = new THREE.Group(); const hh = OB.henHouse(g, 0, 0, 0); hh.scale.setScalar(1.3);
+  return bakeStatic(g);
 }
 function makeNestCrate() {
-  const g = new THREE.Group(); const t = makeTable(1.1, 0.7, 0.7); g.add(t);
-  g.add(mesh(at(new THREE.BoxGeometry(0.9, 0.08, 0.55), 0, 0.74, 0), farmMats().straw));
-  for (let i = 0; i < 9; i++) { const s = mesh(at(new THREE.CylinderGeometry(0.004, 0.004, 0.16, 3), (Math.random() - 0.5) * 0.9, 0.78, (Math.random() - 0.5) * 0.55, Math.random() * 3, 0, Math.PI / 2), farmMats().straw, false); g.add(s); }
+  const g = new THREE.Group(); g.add(makeTable(1.1, 0.7, 0.7));
+  const s2 = new THREE.Group(); rb(s2, 0.9, 0.1, 0.55, '#F2C25A', 0, 0.75, 0, 0.04); g.add(bakeStatic(s2));
   return g;
 }
 function makeRailFence(x0, z0, x1, z1, gapAt) {
-  // post-and-rail fence around a rectangle
-  const g = new THREE.Group(), m = mats();
-  const side = (ax, az, bx, bz) => {
-    const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 1.6)), ang = Math.atan2(bx - ax, bz - az);
-    for (let i = 0; i <= n; i++) { const t = i / n; g.add(mesh(at(new THREE.BoxGeometry(0.12, 1.1, 0.12), ax + (bx - ax) * t, 0.55, az + (bz - az) * t), m.woodDark)); }
-    for (const y of [0.45, 0.9]) { const r = mesh(new THREE.BoxGeometry(0.06, 0.1, L), m.wood); r.position.set((ax + bx) / 2, y, (az + bz) / 2); r.rotation.y = ang; g.add(r); }
-  };
-  side(x0, z0, x1, z0); side(x0, z1, x1, z1); side(x0, z0, x0, z1); side(x1, z0, x1, z1);
-  return g;
+  const g = new THREE.Group();
+  OB.fence(g, x0, z0, x1, z0); OB.fence(g, x0, z1, x1, z1); OB.fence(g, x0, z0, x0, z1); OB.fence(g, x1, z0, x1, z1);
+  return bakeStatic(g);
 }
 function makeBarn(H) {
-  const fm = farmMats(), m = mats();
-  const g = shed(H, 4.4, 3.4, 2.4, 0x6f6a66, fm.redBarn);
-  const dz = 1.71;
-  g.add(mesh(at(new THREE.BoxGeometry(1.9, 1.9, 0.05), 0, 1.15, dz), fm.redBarn));
-  for (const s of [-1, 1]) {
-    g.add(mesh(at(new THREE.BoxGeometry(0.08, 1.9, 0.06), s * 0.95, 1.15, dz + 0.03), m.white), mesh(at(new THREE.BoxGeometry(0.06, 2.6, 0.06), s * 0.47, 1.15, dz + 0.04, 0, 0, s * 0.78), m.white));
-  }
-  g.add(mesh(at(new THREE.BoxGeometry(1.95, 0.08, 0.06), 0, 2.1, dz + 0.03), m.white), mesh(at(new THREE.BoxGeometry(1.95, 0.08, 0.06), 0, 0.22, dz + 0.03), m.white));
-  g.add(mesh(at(new THREE.BoxGeometry(0.7, 0.6, 0.06), 0, 2.85, dz - 0.25), m.dark, false));
-  g.add(mesh(at(new THREE.PlaneGeometry(1.2, 0.36), 1.55, 2.0, dz + 0.04), std({ map: labelTex('Dairy', '#f4efe2', '#a8402f'), roughness: 0.6 }), false));
-  for (const [x, z] of [[-2.6, 1.0], [-2.7, 0.1]]) { const hay = mesh(at(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 18), 0, 0.42, 0, Math.PI / 2, 0.3, 0), fm.straw); hay.position.set(x, 0, z); g.add(hay); }
-  return g;
+  const g = shed(H, 4.4, 3.4, 2.4, 0x6f6a66, '#D8392E');
+  const dz = 1.72;
+  rb(g, 1.9, 1.9, 0.08, '#B52E25', 0, 1.15, dz, 0.04);
+  for (const sd of [-1, 1]) { rb(g, 0.1, 1.9, 0.1, '#FFFFFF', sd * 0.95, 1.15, dz + 0.04, 0.03); rb(g, 0.09, 2.5, 0.08, '#FFFFFF', sd * 0.0, 1.15, dz + 0.06, 0.03, { rz: sd * 0.78 }); }
+  rb(g, 1.95, 0.1, 0.1, '#FFFFFF', 0, 2.1, dz + 0.04, 0.03); rb(g, 1.95, 0.1, 0.1, '#FFFFFF', 0, 0.22, dz + 0.04, 0.03);
+  rb(g, 0.7, 0.6, 0.08, '#3A2216', 0, 2.95, dz - 0.3, 0.04);
+  for (const [x, z] of [[-2.6, 1.0], [-2.7, 0.1]]) { const b = OG(g, x, 0, z, 0.3); cyl(b, 0.42, 0.42, 0.7, '#F2C25A', 0, 0.42, 0, 16, { rz: Math.PI / 2 }); }
+  const out = bakeStatic(g); signBoard(out, 'Dairy', 1.6, 2.0, dz + 0.06, 1.1);
+  return out;
 }
 function makeMilkStand() {
-  const g = new THREE.Group(), m = mats(), fm = farmMats();
-  g.add(mesh(at(new THREE.BoxGeometry(1.2, 0.7, 0.7), 0, 0.35, 0), m.wood));
-  g.add(mesh(at(new THREE.BoxGeometry(1.3, 0.05, 0.8), 0, 0.72, 0), m.woodDark));
-  // two old milk churns beside it
-  for (const x of [-0.95, 0.95]) {
-    const prof = [[0, 0], [0.17, 0], [0.18, 0.05], [0.18, 0.42], [0.12, 0.55], [0.1, 0.62], [0.12, 0.64], [0, 0.66]].map(([r, y]) => new THREE.Vector2(r, y));
-    g.add(mesh(at(new THREE.LatheGeometry(prof, 20), x, 0, 0.1), fm.metal));
-  }
+  const g = new THREE.Group();
+  rb(g, 1.2, 0.7, 0.7, '#C9884C', 0, 0.35, 0, 0.06); rb(g, 1.3, 0.08, 0.8, '#E3A462', 0, 0.72, 0, 0.03);
+  for (const x of [-0.95, 0.95]) { cyl(g, 0.18, 0.18, 0.45, '#DDE4EA', x, 0.23, 0.1, 14); cyl(g, 0.11, 0.17, 0.12, '#DDE4EA', x, 0.51, 0.1, 14); cyl(g, 0.12, 0.12, 0.05, '#3C7FD6', x, 0.6, 0.1, 14); }
+  return bakeStatic(g);
+}
+function makeShelter(H, roofColor, signText) {
+  // An open workshop: four posts, a thick sloping roof and a counter, with a sign on the front.
+  const g = new THREE.Group();
+  const roofHex = '#' + new THREE.Color(roofColor).getHexString();
+  for (const [x, z] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9], [1.3, 0.9]]) rb(g, 0.16, 2.3, 0.16, '#9A6237', x, 1.15, z, 0.04);
+  rb(g, 3.2, 0.18, 2.4, roofHex, 0, 2.45, 0, 0.06, { rx: 0.18 });
+  rb(g, 2.4, 0.1, 0.95, '#E3A462', 0, 0.8, -0.4, 0.03);
+  for (const x of [-1.05, 1.05]) rb(g, 0.1, 0.78, 0.85, '#9A6237', x, 0.39, -0.4, 0.03);
   return g;
 }
-function makeShelter(H, roofColor, signText, signBg) {
-  const g = new THREE.Group(), m = mats();
-  for (const [x, z] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9], [1.3, 0.9]]) g.add(mesh(at(new THREE.BoxGeometry(0.14, 2.3, 0.14), x, 1.15, z), m.beam));
-  const roof = H.shingleRoof(2.9, 2.0, 0.8, roofColor); roof.position.y = 2.3; g.add(roof);
-  g.add(mesh(at(new THREE.BoxGeometry(2.3, 0.08, 0.9), 0, 0.8, -0.4), m.wood));
-  for (const x of [-1.05, 1.05]) g.add(mesh(at(new THREE.BoxGeometry(0.08, 0.8, 0.8), x, 0.4, -0.4), m.woodDark));
-  g.add(mesh(at(new THREE.PlaneGeometry(1.6, 0.5), 0, 2.15, 1.02), std({ map: H.signTex(signText, signBg), roughness: 0.6 }), false));
-  return g;
-}
+function finishShelter(g, signText, keep) { const out = bakeStatic(g, keep); signBoard(out, signText, 0, 2.15, 1.18, 1.5, -0.18); return out; }
 function makeChurnHouse(H) {
-  const g = makeShelter(H, 0x8a5a3c, 'Butter', '#3f6b45'), m = mats();
-  // a tall wooden butter churn with a plunger that works while there's milk
-  const prof = []; for (let i = 0; i <= 8; i++) { const y = i / 8; prof.push(new THREE.Vector2(0.26 - y * 0.06 + Math.sin(y * Math.PI) * 0.02, y * 0.9)); }
-  g.add(mesh(at(new THREE.LatheGeometry(prof, 20), -0.5, 0.84, -0.4), m.woodDark));
-  for (const y of [0.12, 0.5, 0.82]) g.add(mesh(at(new THREE.TorusGeometry(0.255 - y / 0.9 * 0.06 + 0.01, 0.012, 6, 20), -0.5, 0.84 + y, -0.4, Math.PI / 2), m.iron, false));
-  const plunger = new THREE.Group(); plunger.position.set(-0.5, 1.7, -0.4); g.add(plunger);
-  plunger.add(mesh(at(new THREE.CylinderGeometry(0.025, 0.025, 0.9, 8), 0, 0.2, 0), m.wood));
-  plunger.add(mesh(at(new THREE.SphereGeometry(0.05, 8, 6), 0, 0.66, 0), m.wood));
-  // butter pats waiting on a board, and a crock
-  g.add(mesh(at(new THREE.BoxGeometry(0.6, 0.03, 0.4), 0.55, 0.86, -0.4), m.wood));
-  for (let i = 0; i < 3; i++) { const b = makeButter(); b.position.set(0.38 + i * 0.17, 0.88, -0.4); g.add(b); }
-  g.userData = { plunger, smokeAt: null };
-  return g;
+  const g = makeShelter(H, 0xe0402f, 'Butter');
+  const c = OG(g, -0.5, 0.84, -0.4);
+  cyl(c, 0.3, 0.38, 0.9, '#C98A4E', 0, 0.45, 0, 16); cyl(c, 0.36, 0.36, 0.07, '#7A4C2C', 0, 0.18, 0, 16); cyl(c, 0.32, 0.32, 0.07, '#7A4C2C', 0, 0.74, 0, 16); cyl(c, 0.28, 0.28, 0.08, '#A86A3C', 0, 0.92, 0, 16);
+  const plunger = new THREE.Group(); plunger.position.set(-0.5, 1.7, -0.4);
+  cyl(plunger, 0.045, 0.045, 0.8, '#8B5A34', 0, 0.2, 0, 8); rb(plunger, 0.4, 0.08, 0.08, '#8B5A34', 0, 0.6, 0, 0.03);
+  for (let i = 0; i < 3; i++) { const b = OG(g, 0.38 + i * 0.22, 0.86, -0.4); cyl(b, 0.1, 0.1, 0.03, '#DDEBF5', 0, 0.015, 0, 14); rb(b, 0.14, 0.08, 0.1, '#F9D65A', 0, 0.07, 0, 0.02); }
+  const out = finishShelter(g, 'Butter'); out.add(bakeStatic(plunger)); const pl = out.children[out.children.length - 1]; pl.position.set(-0.5, 1.7, -0.4);
+  out.userData = { plunger: pl, smokeAt: null };
+  return out;
 }
 function makeHoneyHouse(H) {
-  const g = makeShelter(H, 0xa8743a, 'Honey', '#7a5a1c'), m = mats(), fm = farmMats();
-  // a hand-cranked extractor drum
-  const drum = new THREE.LatheGeometry([[0, 0], [0.32, 0], [0.34, 0.04], [0.34, 0.6], [0.32, 0.62]].map(([r, y]) => new THREE.Vector2(r, y)), 24);
-  g.add(mesh(at(drum, -0.5, 0.84, -0.4), fm.metal));
-  const crank = new THREE.Group(); crank.position.set(-0.5, 1.5, -0.4); g.add(crank);
-  crank.add(mesh(at(new THREE.BoxGeometry(0.4, 0.03, 0.03), 0.18, 0, 0), m.iron), mesh(at(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 6), 0.36, 0.07, 0), m.wood));
-  for (let i = 0; i < 6; i++) { const j = makeHoney(); j.position.set(0.25 + (i % 3) * 0.2, 0.84, -0.6 + Math.floor(i / 3) * 0.24); g.add(j); }
-  g.userData = { crank, smokeAt: null };
-  return g;
+  const g = makeShelter(H, 0xf09a1a, 'Honey');
+  cyl(g, 0.34, 0.34, 0.62, '#C9C3B3', -0.5, 1.15, -0.4, 18); cyl(g, 0.36, 0.36, 0.06, '#9E9A90', -0.5, 1.47, -0.4, 18);
+  for (let i = 0; i < 6; i++) OB.jar(g, 0.25 + (i % 3) * 0.24, 0.85, -0.6 + Math.floor(i / 3) * 0.28, 0.7, '#F0A21C');
+  const out = finishShelter(g, 'Honey');
+  const crank = new THREE.Group(); rb(crank, 0.4, 0.04, 0.04, '#4A3A30', 0.18, 0, 0, 0.01); cyl(crank, 0.03, 0.03, 0.16, '#C9884C', 0.36, 0.08, 0, 6);
+  const cb = bakeStatic(crank); cb.position.set(-0.5, 1.55, -0.4); out.add(cb);
+  out.userData = { crank: cb, smokeAt: null };
+  return out;
 }
 function makeCheeseRoom(H) {
-  const g = makeShelter(H, 0x6f7f5a, 'Cheese', '#8a3a2a'), m = mats();
-  // a cheese press and a shelf of wheels ripening
-  g.add(mesh(at(new THREE.BoxGeometry(0.5, 0.06, 0.5), -0.5, 0.87, -0.4), m.woodDark));
-  g.add(mesh(at(new THREE.CylinderGeometry(0.2, 0.2, 0.22, 20), -0.5, 1.0, -0.4), m.wood));
-  for (const x of [-0.72, -0.28]) g.add(mesh(at(new THREE.BoxGeometry(0.05, 0.9, 0.05), x, 1.3, -0.4), m.woodDark));
-  g.add(mesh(at(new THREE.BoxGeometry(0.55, 0.06, 0.1), -0.5, 1.74, -0.4), m.woodDark));
-  const screw = new THREE.Group(); screw.position.set(-0.5, 1.45, -0.4); g.add(screw);
-  screw.add(mesh(at(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8), 0, 0, 0), m.iron), mesh(at(new THREE.BoxGeometry(0.34, 0.025, 0.025), 0, 0.25, 0), m.iron));
-  g.add(mesh(at(new THREE.BoxGeometry(1.0, 0.04, 0.34), 0.5, 1.45, -0.75), m.wood));
-  for (let i = 0; i < 4; i++) { const c = makeCheese(); c.position.set(0.18 + i * 0.22, 1.47, -0.75); c.rotation.y = i * 1.3; g.add(c); }
-  for (let i = 0; i < 3; i++) { const c = makeCheese(); c.position.set(0.3 + i * 0.24, 0.84, -0.45); c.rotation.y = i * 2.1; g.add(c); }
-  g.userData = { crank: screw, smokeAt: null };
-  return g;
+  const g = makeShelter(H, 0x45a535, 'Cheese');
+  const sh = OB.cheeseShelf(g, 0.45, -0.55); sh.scale.setScalar(0.75); sh.position.y = 0.84;
+  rb(g, 0.5, 0.06, 0.5, '#8B5A34', -0.6, 0.87, -0.4, 0.02); cyl(g, 0.2, 0.2, 0.22, '#F6C640', -0.6, 1.0, -0.4, 18);
+  for (const x of [-0.82, -0.38]) rb(g, 0.06, 0.9, 0.06, '#8B5A34', x, 1.3, -0.4, 0.02);
+  rb(g, 0.55, 0.08, 0.12, '#8B5A34', -0.6, 1.76, -0.4, 0.02);
+  const out = finishShelter(g, 'Cheese');
+  const screw = new THREE.Group(); cyl(screw, 0.025, 0.025, 0.6, '#4A3A30', 0, 0, 0, 8); rb(screw, 0.34, 0.03, 0.03, '#4A3A30', 0, 0.25, 0, 0.01);
+  const sb = bakeStatic(screw); sb.position.set(-0.6, 1.45, -0.4); out.add(sb);
+  out.userData = { crank: sb, smokeAt: null };
+  return out;
 }
 function makeCiderPress(H) {
-  const g = makeShelter(H, 0x9a4a32, 'Cider', '#3f6b4f'), m = mats();
-  // a slatted basket press with a big screw and a tub under the spout
-  const slats = []; for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; slats.push(at(new THREE.BoxGeometry(0.06, 0.5, 0.03), -0.5 + Math.cos(a) * 0.26, 1.12, -0.4 + Math.sin(a) * 0.26, 0, -a, 0)); }
-  g.add(mesh(merge(slats), m.wood));
-  for (const y of [0.92, 1.32]) g.add(mesh(at(new THREE.TorusGeometry(0.28, 0.014, 6, 24), -0.5, y, -0.4, Math.PI / 2), m.iron, false));
-  g.add(mesh(at(new THREE.CylinderGeometry(0.24, 0.24, 0.04, 20), -0.5, 1.3, -0.4), farmMats().metal));
-  const screw = new THREE.Group(); screw.position.set(-0.5, 1.7, -0.4); g.add(screw);
-  screw.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 8), 0, 0, 0), m.iron), mesh(at(new THREE.BoxGeometry(0.6, 0.035, 0.035), 0, 0.3, 0), m.wood));
-  for (const x of [-0.85, -0.15]) g.add(mesh(at(new THREE.BoxGeometry(0.07, 1.4, 0.07), x, 1.1, -0.4), m.woodDark));
-  g.add(mesh(at(new THREE.BoxGeometry(0.85, 0.08, 0.1), -0.5, 1.85, -0.4), m.woodDark));
-  // crate of apples and bottles waiting
-  const cr = makeCrate(0.55, 0.3, 0.4); cr.position.set(0.55, 0.84, -0.45); g.add(cr);
-  for (let i = 0; i < 4; i++) { const b = makeCider(); b.position.set(0.32 + i * 0.15, 1.14, -0.45); g.add(b); }
-  g.userData = { crank: screw, smokeAt: null };
-  return g;
+  const g = makeShelter(H, 0xc2321f, 'Cider');
+  const cp = OB.ciderPress(g, -0.45, -0.4); cp.scale.setScalar(0.72); cp.position.y = 0.84;
+  for (let i = 0; i < 4; i++) { const b = OG(g, 0.4 + i * 0.17, 0.86, -0.45); cyl(b, 0.06, 0.06, 0.22, '#C7782A', 0, 0.11, 0, 10); cyl(b, 0.03, 0.05, 0.06, '#C7782A', 0, 0.25, 0, 10); cyl(b, 0.032, 0.032, 0.04, '#3E9A30', 0, 0.3, 0, 8); }
+  const out = finishShelter(g, 'Cider');
+  const screw = new THREE.Group(); rb(screw, 0.6, 0.04, 0.04, '#8B5A34', 0, 0, 0, 0.01);
+  const sb = bakeStatic(screw); sb.position.set(-0.45, 2.38, -0.4); out.add(sb);
+  out.userData = { crank: sb, smokeAt: null };
+  return out;
 }
 function makeHive(color) {
-  const g = new THREE.Group(), m = mats();
-  const paintMat = std({ color, roughness: 0.75 });
-  g.add(mesh(at(new THREE.BoxGeometry(0.62, 0.3, 0.7), 0, 0.15, 0), m.woodDark));
-  for (let i = 0; i < 3; i++) {
-    g.add(mesh(at(new THREE.BoxGeometry(0.54, 0.25, 0.62), 0, 0.43 + i * 0.27, 0), paintMat));
-    g.add(mesh(at(new THREE.BoxGeometry(0.56, 0.02, 0.64), 0, 0.31 + i * 0.27, 0), m.beam, false));
-  }
-  g.add(mesh(at(new THREE.BoxGeometry(0.66, 0.08, 0.76), 0, 1.16, 0), farmMats().metal));
-  g.add(mesh(at(new THREE.BoxGeometry(0.34, 0.03, 0.02), 0, 0.34, 0.315), m.dark, false));
-  g.add(mesh(at(new THREE.BoxGeometry(0.4, 0.025, 0.14), 0, 0.31, 0.38, 0.2, 0, 0), m.wood));
-  return g;
+  const g = new THREE.Group(); OB.beehive(g, 0, 0, 0);
+  return bakeStatic(g);
 }
 function makeBush(H, seed) {
   const r = rand(seed), g = new THREE.Group();
-  const blobs = [H.foliageBlob(0, 0.42, 0, 0.42, seed, 0x6fa046, 0x2a5220, 2), H.foliageBlob(0.3, 0.32, 0.12, 0.3, seed + 1, 0x6fa046, 0x2a5220, 2), H.foliageBlob(-0.28, 0.32, -0.1, 0.32, seed + 2, 0x6fa046, 0x2a5220, 2)];
-  g.add(mesh(merge(blobs), mats().foliage));
-  // little white flowers here and there
-  for (let i = 0; i < 4; i++) { const a = r() * 6.28; g.add(mesh(at(new THREE.SphereGeometry(0.03, 6, 5), Math.cos(a) * 0.4, 0.55 + r() * 0.2, Math.sin(a) * 0.4), mats().white, false)); }
+  const b = new THREE.Group(); OB.bush(b, 0, 0, 1.0); for (let i = 0; i < 4; i++) { const a = r() * 6.28; sph(b, 0.035, '#FFFFFF', Math.cos(a) * 0.42, 0.5 + r() * 0.15, Math.sin(a) * 0.42); }
+  g.add(bakeStatic(b));
   const berries = [];
   for (let i = 0; i < 6; i++) {
-    const a = i / 6 * Math.PI * 2 + r() * 0.4, rad = 0.43 + r() * 0.06;
-    const b = makeBerry(); b.position.set(Math.cos(a) * rad, 0.2 + r() * 0.22, Math.sin(a) * rad * 0.8); b.rotation.set(Math.PI + (r() - 0.5) * 0.6, r() * 6, (r() - 0.5) * 0.6); b.scale.setScalar(1.25);
-    g.add(b); berries.push({ mesh: b, grow: 1 });
+    const a = i / 6 * Math.PI * 2 + r() * 0.4, rad = 0.5 + r() * 0.06;
+    const bb = makeBerry(); bb.position.set(Math.cos(a) * rad, 0.18 + r() * 0.22, Math.sin(a) * rad * 0.8); bb.rotation.set(Math.PI + (r() - 0.5) * 0.6, r() * 6, (r() - 0.5) * 0.6); bb.scale.setScalar(1.35);
+    g.add(bb); berries.push({ mesh: bb, grow: 1 });
   }
   return { group: g, berries };
 }
 function makeWagon(H) {
-  // The order wagon: a sturdy cart with a chalkboard that lists what the next order needs.
-  const g = new THREE.Group(), m = mats();
-  g.add(mesh(at(new THREE.BoxGeometry(2.4, 0.1, 1.3), 0, 0.85, 0), m.wood));
-  for (const z of [-0.64, 0.64]) g.add(mesh(at(new THREE.BoxGeometry(2.4, 0.4, 0.06), 0, 1.08, z), m.wood));
-  for (const x of [-1.18, 1.18]) g.add(mesh(at(new THREE.BoxGeometry(0.06, 0.4, 1.3), x, 1.08, 0), m.wood));
-  for (const [x, z] of [[-0.8, -0.75], [0.8, -0.75], [-0.8, 0.75], [0.8, 0.75]]) {
-    g.add(mesh(at(new THREE.TorusGeometry(0.42, 0.05, 8, 26), x, 0.45, z), m.woodDark));
-    for (let i = 0; i < 6; i++) g.add(mesh(at(new THREE.BoxGeometry(0.04, 0.8, 0.03), x, 0.45, z, 0, 0, i * Math.PI / 6), m.woodDark, false));
-    g.add(mesh(at(new THREE.CylinderGeometry(0.07, 0.07, 0.1, 10), x, 0.45, z, Math.PI / 2), m.iron, false));
-  }
-  for (const z of [-0.35, 0.35]) g.add(mesh(at(new THREE.CylinderGeometry(0.035, 0.035, 1.8, 6), 2.0, 0.5, z, 0, 0, Math.PI / 2 - 0.35), m.wood));
-  const cr = makeCrate(0.7, 0.4, 0.5); cr.position.set(-0.7, 0.9, -0.3); g.add(cr);
-  // chalkboard sign on two posts, facing the player
-  for (const x of [-0.75, 0.75]) g.add(mesh(at(new THREE.BoxGeometry(0.07, 1.4, 0.07), x, 1.6, 0.6), m.woodDark));
+  // The order wagon: a big Design-style cart with a board that lists what the next order needs.
+  const g = new THREE.Group();
+  rb(g, 2.4, 0.5, 1.3, '#C9864A', 0, 1.0, 0, 0.08); rb(g, 2.3, 0.06, 1.2, '#E3A462', 0, 1.26, 0, 0.02);
+  for (const [x, z] of [[-0.8, -0.72], [0.8, -0.72], [-0.8, 0.72], [0.8, 0.72]]) { cyl(g, 0.42, 0.42, 0.12, '#6E4426', x, 0.45, z, 18, { rx: Math.PI / 2 }); cyl(g, 0.14, 0.14, 0.14, '#D9A16A', x, 0.45, z, 10, { rx: Math.PI / 2 }); }
+  for (const z of [-0.35, 0.35]) rb(g, 1.6, 0.1, 0.1, '#8B5A34', 1.85, 0.85, z, 0.03, { rz: 0.3 });
+  for (const x of [-0.75, 0.75]) rb(g, 0.1, 1.4, 0.1, '#9A6237', x, 1.8, 0.6, 0.03);
+  rb(g, 1.85, 0.98, 0.08, '#8B4E2A', 0, 2.05, 0.6, 0.05, { rx: -0.25 });
+  const out = bakeStatic(g);
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const board = mesh(at(new THREE.PlaneGeometry(1.7, 0.85), 0, 2.0, 0.66, -0.25), std({ map: tex, roughness: 0.9 }), false); g.add(board);
-  g.add(mesh(at(new THREE.BoxGeometry(1.8, 0.95, 0.04), 0, 2.0, 0.63, -0.25), m.woodDark));
-  return { group: g, ctx: cv.getContext('2d'), tex };
+  out.add(mesh(at(new THREE.PlaneGeometry(1.7, 0.85), 0, 2.05, 0.66, -0.25), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), false));
+  return { group: out, ctx: cv.getContext('2d'), tex };
 }
 export const makeWagonIcon = () => makeWagon().group;
 function makePond(H) {
-  const g = new THREE.Group(), m = mats(), fm = farmMats();
-  const water = new THREE.CircleGeometry(1, 48); water.rotateX(-Math.PI / 2);
-  displace(water, (v) => { const a = Math.atan2(v.z, v.x), k = 1 + Math.sin(a * 3) * 0.08 + Math.sin(a * 5 + 1) * 0.05; v.x *= 2.6 * k; v.z *= 1.8 * k; });
-  const w = mesh(water, fm.water, false, true); w.position.y = 0.05; g.add(w);
-  const bank = new THREE.RingGeometry(1, 1.18, 48, 1); bank.rotateX(-Math.PI / 2);
-  displace(bank, (v) => { const a = Math.atan2(v.z, v.x), k = 1 + Math.sin(a * 3) * 0.08 + Math.sin(a * 5 + 1) * 0.05; v.x *= 2.6 * k; v.z *= 1.8 * k; });
-  g.add(mesh(at(bank, 0, 0.04, 0), std({ color: 0x8a7a5a, roughness: 1 }), false, true));
-  const r = rand(31);
-  for (let i = 0; i < 22; i++) { const a = r() * 6.28, rr = 1.05 + r() * 0.15; g.add(mesh(at(new THREE.DodecahedronGeometry(0.1 + r() * 0.12, 0), Math.cos(a) * 2.6 * rr, 0.06, Math.sin(a) * 1.8 * rr, r(), r(), r(), new V3(1, 0.6, 1)), m.stone)); }
-  for (let i = 0; i < 40; i++) { const a = -0.6 + r() * 1.6, rr = 0.95 + r() * 0.2, h = 0.5 + r() * 0.5; g.add(mesh(at(new THREE.CylinderGeometry(0.012, 0.018, h, 4), Math.cos(a) * 2.6 * rr, h / 2, Math.sin(a) * 1.8 * rr, (r() - 0.5) * 0.3, 0, (r() - 0.5) * 0.3), mats().leaf, false)); if (i % 4 === 0) g.add(mesh(at(new THREE.CapsuleGeometry(0.025, 0.1, 3, 6), Math.cos(a) * 2.6 * rr, h, Math.sin(a) * 1.8 * rr), std({ color: 0x5a3a22, roughness: 0.9 }), false)); }
-  for (let i = 0; i < 6; i++) { const a = r() * 6.28, rr = r() * 0.7; const pad = mesh(at(new THREE.CircleGeometry(0.16, 12, 0.3, 5.9), Math.cos(a) * 2.2 * rr, 0.06, Math.sin(a) * 1.5 * rr, -Math.PI / 2), mats().leaf, false); g.add(pad); if (i % 2) g.add(mesh(at(new THREE.SphereGeometry(0.04, 8, 6), Math.cos(a) * 2.2 * rr, 0.09, Math.sin(a) * 1.5 * rr), std({ color: 0xf6c6d8, roughness: 0.5 }), false)); }
+  // The Design pond: bright blue water with a sandy rim and grey rocks, stretched to fit its spot.
+  const g = new THREE.Group(), b = new THREE.Group();
+  const w = OG(b, 0, 0, 0); w.scale.set(2.6, 1, 1.8);
+  cyl(w, 1.1, 1.1, 0.08, '#E2C38A', 0, 0.02, 0, 32, { cast: false }); cyl(w, 1.0, 1.0, 0.1, OM('#5CC3E8', { roughness: 0.3 }), 0, 0.04, 0, 32, { cast: false });
+  cyl(w, 0.4, 0.4, 0.11, OM('#9EE0F5', { roughness: 0.3 }), -0.3, 0.045, -0.2, 20, { cast: false, s: [1.4, 1, 0.35] });
+  for (let i = 0; i < 10; i++) { const a = i * 0.63; OB.rock(b, Math.cos(a) * 2.75, Math.sin(a) * 1.95, 0.9 + (i % 3) * 0.2); }
+  for (let i = 0; i < 6; i++) { const a = -0.4 + i * 0.25; cyl(b, 0.02, 0.025, 0.7, '#3E9A30', Math.cos(a) * 2.55, 0.35, Math.sin(a) * 1.75, 5); oadd(b, new THREE.CapsuleGeometry(0.04, 0.12, 3, 6), OM('#7A4C2C'), Math.cos(a) * 2.55, 0.72, Math.sin(a) * 1.75); }
+  g.add(bakeStatic(b));
   const ducks = [0, 1].map((i) => { const d = makeDuck(i + 1); g.add(d); return d; });
   return { group: g, ducks };
 }
-
-// Where everything sits on the new land
 export const FARM_SPOTS = {
   eggs: new V3(19.8, 0, -7.6), custardIn: new V3(18.6, 0, -2.1), custardOut: new V3(21.0, 0, -2.1),
   milk: new V3(27.2, 0, -7.6), butterIn: new V3(25.9, 0, -2.1), butterOut: new V3(28.5, 0, -2.1),
@@ -644,7 +416,7 @@ export function buildFarm(scene, colliders, H) {
   box(S.milk.x - 1.2, S.milk.z - 1.35, S.milk.x + 1.2, S.milk.z - 0.55, 'dairy');
   anchors.milk = stand.position.clone().add(new V3(0, 0.75, 0));
   dairy.add(makeRailFence(...PADDOCK)); box(PADDOCK[0] - 0.1, PADDOCK[1] - 0.1, PADDOCK[2] + 0.1, PADDOCK[3] + 0.1, 'dairy');
-  const trough = new THREE.Group(); trough.add(mesh(at(new THREE.BoxGeometry(1.4, 0.4, 0.5), 0, 0.2, 0), mats().woodDark)); trough.add(mesh(at(new THREE.PlaneGeometry(1.3, 0.4), 0, 0.38, 0, -Math.PI / 2), farmMats().water, false));
+  const tg = new THREE.Group(); rb(tg, 1.4, 0.4, 0.5, '#8B5A34', 0, 0.2, 0, 0.05); rb(tg, 1.25, 0.04, 0.36, '#5CC3E8', 0, 0.39, 0, 0.02); const trough = bakeStatic(tg);
   trough.position.set(25.4, 0, 12.4); dairy.add(trough);
   const cows = [];
   for (let i = 0; i < 3; i++) { const c = makeCow(i * 11 + 5); c.position.set(26 + i * 1.6, 0, 5.5 + i * 2.4); c.rotation.y = i * 2; dairy.add(c); cows.push(c); }
@@ -656,15 +428,13 @@ export function buildFarm(scene, colliders, H) {
   // ----- west hill: strawberries and bees -----
   const west = grp('westLand');
   const berries = grp('berries'), bushes = [];
-  const straw = new THREE.PlaneGeometry(8.6, 1.3); straw.rotateX(-Math.PI / 2);
-  for (const z of [2.6, 5.0, 7.4, 9.8]) { const s = mesh(straw, farmMats().straw, false, true); s.position.set(-25, 0.03, z); berries.add(s); }
+  { const sg = new THREE.Group(); for (const z of [2.6, 5.0, 7.4, 9.8]) { rb(sg, 8.8, 0.16, 1.4, '#9C5E2E', -25, 0.05, z, 0.06, { cast: false }); rb(sg, 8.6, 0.05, 1.2, '#F2C25A', -25, 0.14, z, 0.02, { cast: false }); } berries.add(bakeStatic(sg)); }
   BUSHES.forEach(([x, z], i) => {
     const b = makeBush(H, 200 + i * 3); b.group.position.set(x, 0, z); b.group.rotation.y = i * 1.7; berries.add(b.group);
     bushes.push({ x, z, apples: b.berries, group: 'berries', fruit: 'berry', foliage: null, fade: 1, reach: 1.3 });
     colliders.push({ x, z, r: 0.42, group: 'berries' });
   });
-  const sign = mesh(at(new THREE.PlaneGeometry(1.2, 0.4), 0, 1.2, 0), std({ map: labelTex('Strawberries', '#fbf1df', '#c8553d'), roughness: 0.6 }), false);
-  const post = new THREE.Group(); post.add(sign, mesh(at(new THREE.BoxGeometry(0.08, 1.2, 0.08), 0, 0.6, -0.03), mats().woodDark)); post.position.set(-17.2, 0, -1.3); berries.add(post);
+  { const pg = new THREE.Group(); rb(pg, 0.12, 1.3, 0.12, '#9A6237', 0, 0.65, -0.05, 0.03); const post = bakeStatic(pg); signBoard(post, 'Berries', 0, 1.25, 0.02, 1.2); post.position.set(-17.2, 0, -1.3); berries.add(post); }
 
   const tarts = grp('tarts');
   const tOven = H.makeOven('pie'); tOven.position.set(-20.5, 0, -4.6); tarts.add(tOven); box(-21.9, -5.9, -19.1, -3.3, 'tarts');
@@ -688,7 +458,7 @@ export function buildFarm(scene, colliders, H) {
     }
     im.count = k; bees.add(im);
   }
-  const beeGeo = paint(new THREE.SphereGeometry(0.03, 8, 6).scale(0.8, 0.8, 1.3), (x, y, z, c) => c.set(Math.sin(z * 260) > 0 ? 0x2a1e10 : 0xf2b632));
+  const beeGeo = paint(new THREE.SphereGeometry(0.06, 8, 6).scale(1, 0.9, 1.3), (x, y, z, c) => c.set(Math.abs(z) > 0.02 && Math.abs(z) < 0.045 ? 0x2a1a10 : 0xffd12e));
   const beeIM = new THREE.InstancedMesh(beeGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 }), 36); bees.add(beeIM);
   const beeData = Array.from({ length: 36 }, (_, i) => ({ hive: HIVES[i % 4], a: i * 1.7, r: 0.5 + (i % 5) * 0.35, h: 0.6 + (i % 3) * 0.35, sp: 0.8 + (i % 4) * 0.3 }));
 
@@ -713,7 +483,7 @@ export function buildFarm(scene, colliders, H) {
   const tN = makeTable(1.7, 0.8, 0.95); tN.position.set(7.4, 0, 5.6); shopN.add(tN); box(6.55, 5.2, 8.25, 6.0, 'cheese');
   anchors.stallN = tN.position.clone().add(new V3(0, 0.98, 0));
   anchors.stallE = tE.position.clone().add(new V3(0, 0.98, 0)); anchors.stallW = tW.position.clone().add(new V3(0, 0.98, 0));
-  const cloth = (t) => t.add(mesh(at(new THREE.BoxGeometry(1.72, 0.01, 0.82), 0, 0.98, 0), std({ color: 0xf7efe0, roughness: 0.9 }), false, true));
+  const cloth = (t) => t.add(mesh(at(new THREE.BoxGeometry(1.72, 0.02, 0.82), 0, 0.98, 0), std({ color: 0xfff6e6, roughness: 0.9 }), false, true));
   cloth(tE); cloth(tW); cloth(tN);
 
   // ----- order wagon -----

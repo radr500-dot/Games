@@ -3,8 +3,10 @@ import * as THREE from 'three';
 import { mergeVertices } from './vendor/BufferGeometryUtils.js';
 import {
   rand, fbm, noise3, paint, paintFaces, displace, at, mesh, merge, canvasTex, speckle, mats, wheatStalkGeo,
-  makeApple, makeJam, makeBasket, makeBarrel, makeCrate, makeTable, makeChair, makeLamp, makeBench, makeUmbrella, makePerson
+  makeApple, makeJam, makeBasket, makeBarrel, makeCrate, makeTable, makeChair, makeLamp, makeBench, makeUmbrella, makePerson,
+  bakeStatic, bakeGeo, VC
 } from './models.js';
+import * as OB from './art.js';
 import { buildFarm, FARM_PATHS, FARM_SPOTS } from './farm.js';
 
 // ---------- layout ----------
@@ -102,105 +104,50 @@ export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'bread', 'oven1'
 
 // ---------- sky + ground ----------
 function makeSky(scene) {
-  const geo = new THREE.SphereGeometry(220, 32, 16);
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: new THREE.Color(0x8fc3e6) }, mid: { value: new THREE.Color(0xd5e8ef) }, bot: { value: new THREE.Color(0xf3e6d0) } },
-    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 bot; varying vec3 vP;
-      void main(){ float h = vP.y; vec3 c = mix(bot, mid, smoothstep(-0.02, 0.12, h)); c = mix(c, top, smoothstep(0.12, 0.6, h)); gl_FragColor = vec4(c,1.0); }`
-  });
-  const sky = new THREE.Mesh(geo, mat); sky.renderOrder = -1; scene.add(sky);
-  // Soft clouds: flattened white blobs high up
-  const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.35, fog: false });
-  const r = rand(44);
-  for (let i = 0; i < 9; i++) {
-    const parts = []; for (let k = 0; k < 5; k++) parts.push(at(new THREE.SphereGeometry(1, 12, 8), k * 1.6 - 3.2 + r(), r() * 0.6, r() * 1.2, 0, 0, 0, 1.2 + r() * 1.2));
-    const c = new THREE.Mesh(merge(parts), cm); const a = r() * Math.PI * 2, d = 90 + r() * 60;
-    c.position.set(Math.cos(a) * d, 32 + r() * 18, Math.sin(a) * d - 30); c.scale.set(3, 1.1, 2); c.lookAt(0, c.position.y, 0); scene.add(c);
-  }
+  // The camera looks down on the farm, so the sky is just a soft blue behind the far hills.
+  scene.background = new THREE.Color(OB.GROUND_COLOR);
 }
-
 function makeGround(scene) {
-  const SIZE = 76, PX = 2048;
-  const tex = canvasTex(PX, PX, (c, w, h) => {
-    const img = c.createImageData(w, h), d = img.data;
-    const g1 = [0.38, 0.64, 0.2], g2 = [0.47, 0.73, 0.25], dirt = [0.93, 0.8, 0.56], dirt2 = [0.86, 0.72, 0.5];
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const wx = (x / w - 0.5) * SIZE, wz = (y / h - 0.5) * SIZE;
-      const n = fbm(wx * 0.35, 0, wz * 0.35) * 0.5 + 0.5, fine = noise3(wx * 6, 1, wz * 6) * 0.5 + 0.5;
-      const p = pathAmount(wx, wz);
-      const k = n * 0.7 + fine * 0.3;
-      let r = g1[0] + (g2[0] - g1[0]) * k, g = g1[1] + (g2[1] - g1[1]) * k, b = g1[2] + (g2[2] - g1[2]) * k;
-      const dk = fine * 0.6 + n * 0.4;
-      const pr = dirt[0] + (dirt2[0] - dirt[0]) * dk, pg = dirt[1] + (dirt2[1] - dirt[1]) * dk, pb = dirt[2] + (dirt2[2] - dirt[2]) * dk;
-      r += (pr - r) * p; g += (pg - g) * p; b += (pb - b) * p;
-      const i = (y * w + x) * 4; d[i] = r * 255; d[i + 1] = g * 255; d[i + 2] = b * 255; d[i + 3] = 255;
-    }
-    c.putImageData(img, 0, 0);
-    // pebbles on the paths, clover and darker grass flecks elsewhere
-    const rr = rand(12);
-    for (let i = 0; i < 26000; i++) {
-      const x = rr() * w, y = rr() * h, wx = (x / w - 0.5) * SIZE, wz = (y / h - 0.5) * SIZE;
-      const p = pathAmount(wx, wz);
-      if (p > 0.6) { c.fillStyle = rr() > 0.5 ? 'rgba(110,90,70,.35)' : 'rgba(240,225,200,.4)'; c.beginPath(); c.arc(x, y, 0.8 + rr() * 1.4, 0, 7); c.fill(); }
-      else if (p < 0.1) { c.fillStyle = rr() > 0.5 ? 'rgba(80,130,50,.16)' : 'rgba(190,225,130,.18)'; c.fillRect(x, y, 1.5, 3 + rr() * 3); }
-    }
-  });
+  // Flat bright grass with a few lighter and darker patches, and raised sandy paths.
+  const SIZE = 76;
   const g = new THREE.PlaneGeometry(SIZE, SIZE, 48, 48); g.rotateX(-Math.PI / 2); // split up so depth stays accurate far from the middle
-  const gm = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
-  // close-up detail: a small tiled texture of soil grains and grass flecks, so the ground stays sharp near the camera
-  const det = canvasTex(512, 512, (c, w, h) => {
-    const img = c.createImageData(w, h), d = img.data;
-    const f = (x, y) => noise3(x * 0.37, 7, y * 0.37) * 50 + noise3(x * 0.09, 1, y * 0.09) * 30;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const sx = x / w, sy = y / h; // blend four shifted copies so the tile repeats without seams
-      const val = 128 + f(x, y) * (1 - sx) * (1 - sy) + f(x - w, y) * sx * (1 - sy) + f(x, y - h) * (1 - sx) * sy + f(x - w, y - h) * sx * sy;
-      const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = Math.max(0, Math.min(255, val)); d[i + 3] = 255;
-    }
-    c.putImageData(img, 0, 0);
-    const r = rand(99);
-    for (let i = 0; i < 2600; i++) { c.fillStyle = r() > 0.5 ? 'rgba(40,40,40,.35)' : 'rgba(235,235,235,.35)'; c.beginPath(); c.arc(r() * w, r() * h, 0.6 + r() * 1.6, 0, 7); c.fill(); }
-  });
-  det.colorSpace = THREE.NoColorSpace; det.wrapS = det.wrapT = THREE.RepeatWrapping;
-  gm.onBeforeCompile = (sh) => {
-    sh.uniforms.uDet = { value: det };
-    sh.fragmentShader = 'uniform sampler2D uDet;\n' + sh.fragmentShader.replace('#include <map_fragment>',
-      `#include <map_fragment>
-      float dA = texture2D(uDet, vMapUv * 38.0).r, dB = texture2D(uDet, vMapUv * 9.0 + 0.37).r;
-      diffuseColor.rgb *= 0.95 + (dA * 0.6 + dB * 0.4) * 0.1;`);
-  };
-  const ground = mesh(g, gm, false, true);
-  scene.add(ground);
-  // a ring (not a disc) so none of its huge triangles lie under the play area, where they could fight the ground for depth
-  const far = mesh(at(new THREE.RingGeometry(37, 260, 64, 3), 0, -0.04, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x7c9a4f, roughness: 1 }), false, true);
+  scene.add(mesh(g, new THREE.MeshStandardMaterial({ color: OB.GROUND_COLOR, roughness: 1 }), false, true));
+  const far = mesh(at(new THREE.RingGeometry(37, 260, 64, 3), 0, -0.02, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: OB.GROUND_COLOR, roughness: 1 }), false, true);
   scene.add(far);
-  // Gentle hills far away
-  const hm = new THREE.MeshStandardMaterial({ color: 0x86a45a, roughness: 1 });
-  const r = rand(8);
+  const r = rand(12);
+  const patches = new THREE.Group();
+  for (let i = 0; i < 90; i++) {
+    const x = (r() - 0.5) * 70, z = (r() - 0.5) * 40; if (pathAmount(x, z) > 0.02) continue;
+    const c = mesh(at(new THREE.CircleGeometry(0.5 + r() * 1.5, 18), x, 0.004, z, -Math.PI / 2, 0, 0, new THREE.Vector3(1, 0.6, 1)), new THREE.MeshStandardMaterial({ color: r() > 0.5 ? 0x93d34a : 0x79bc37, roughness: 1 }), false, true);
+    patches.add(c);
+  }
+  scene.add(bakeStatic(patches));
+  // paths: chunky sand slabs; overlapping pieces share one flat colour so they join seamlessly
+  const pg = new THREE.Group(), pm = OB.M('#EDBA68');
+  for (const [x1, z1, x2, z2, w] of PATHS) {
+    const L = Math.hypot(x2 - x1, z2 - z1);
+    OB.add(pg, new THREE.BoxGeometry(L, 0.05, w), pm, (x1 + x2) / 2, 0, (z1 + z2) / 2, { ry: -Math.atan2(z2 - z1, x2 - x1), cast: false });
+    for (const [x, z] of [[x1, z1], [x2, z2]]) OB.cyl(pg, w / 2, w / 2, 0.05, pm, x, 0, z, 24, { cast: false });
+  }
+  for (const [x, z, rr] of PLAZAS) OB.cyl(pg, rr, rr, 0.05, pm, x, 0, z, 36, { cast: false });
+  const paths = bakeStatic(pg); paths.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }); o.receiveShadow = true; } });
+  scene.add(paths);
+  // gentle green hills far away
+  const hm = new THREE.MeshStandardMaterial({ color: 0x79bc37, roughness: 1, flatShading: true });
   for (let i = 0; i < 14; i++) {
     const a = (i / 14) * Math.PI * 2 + r() * 0.3, d = 75 + r() * 40;
-    const h = mesh(new THREE.SphereGeometry(1, 24, 12), hm, false, false);
+    const h = mesh(new THREE.IcosahedronGeometry(1, 2), hm, false, false);
     h.position.set(Math.cos(a) * d, -6, Math.sin(a) * d); h.scale.set(28 + r() * 20, 10 + r() * 8, 20 + r() * 12); scene.add(h);
   }
 }
-
 // ---------- vegetation ----------
-function foliageBlob(cx, cy, cz, rad, seed, light = 0x7cc232, dark = 0x1f6a1a, detail) {
-  // Leafy canopy: a bumpy ball made of many small leaf clumps, darker in the hollows.
-  const ico = new THREE.IcosahedronGeometry(rad, detail ?? (rad > 0.8 ? 4 : 3)); ico.deleteAttribute('normal'); ico.deleteAttribute('uv');
-  const g = mergeVertices(ico);
-  const L = new THREE.Color(light), D = new THREE.Color(dark), M = new THREE.Color(0x46962a);
-  const bump = (v) => fbm(v.x * 1.6 + seed, v.y * 1.6, v.z * 1.6 - seed) * 0.12; // smooth, rounded, toy-like
-  displace(g, (v) => { v.multiplyScalar(1 + bump(v) - 0.04); });
-  g.translate(cx, cy, cz);
-  paint(g, (x, y, z, c) => {
-    const lx = x - cx, ly = y - cy, lz = z - cz;
-    const clump = Math.abs(noise3(lx * 7 / rad + seed, ly * 7 / rad, lz * 7 / rad));
-    const up = THREE.MathUtils.clamp(ly / rad * 0.5 + 0.5, 0, 1);
-    const k = THREE.MathUtils.clamp(up * 0.7 + clump * 0.9 - 0.15 + fbm(x * 3, y * 3, z * 3) * 0.3, 0, 1);
-    c.copy(D).lerp(M, Math.min(1, k * 1.6)).lerp(L, Math.max(0, k * 1.6 - 0.6));
-  });
+function foliageBlob(cx, cy, cz, rad, seed, light = 0x5bbe40, dark = 0x3c952e, detail) {
+  // A faceted low-poly crown blob, coloured per face between two greens.
+  const g = new THREE.IcosahedronGeometry(rad, 1); g.translate(cx, cy, cz);
+  const r = rand(seed * 7 + 3), a = new THREE.Color(light), b = new THREE.Color(dark), c = new THREE.Color();
+  const col = new Float32Array(g.attributes.position.count * 3);
+  for (let i = 0; i < col.length / 9; i++) { c.copy(a).lerp(b, r() * 0.5); for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], i * 9 + k * 3); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.deleteAttribute('uv'); g.computeVertexNormals();
   return g;
 }
 let LEAF_MAT = null;
@@ -261,143 +208,88 @@ function leafCards(centers, seed) {
 }
 // a soft dark patch on the ground under things, so they sit on the grass instead of floating
 const AO_MATS = {}; let AO_TEX = null;
-export function aoBlob(w, d, strength = 0.45) {
-  if (!AO_TEX) {
-    AO_TEX = canvasTex(128, 128, (c, W, H) => { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); const g = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2); g.addColorStop(0, '#fff'); g.addColorStop(0.45, '#999'); g.addColorStop(1, '#000'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
-    AO_TEX.colorSpace = THREE.NoColorSpace;
-  }
-  const key = strength.toFixed(2);
-  const mat = AO_MATS[key] || (AO_MATS[key] = new THREE.MeshBasicMaterial({ color: 0x14200c, alphaMap: AO_TEX, transparent: true, opacity: strength, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: false }));
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 2, d * 2).rotateX(-Math.PI / 2), mat);
-  m.position.y = 0.012; m.renderOrder = 1;
-  return m;
-}
+export function aoBlob() { return new THREE.Object3D(); } // the Design art uses real shadows only
+const TREE_GREENS = [[0x45a535, 0x3c952e], [0x5bbe40, 0x45a535], [0x3c952e, 0x2f8a2a], [0x72d054, 0x5bbe40]];
 export function makeTree(seed, fruit = true) {
-  const r = rand(seed), m = mats(), grp = new THREE.Group();
-  const h = 1.25 + r() * 0.25;
-  // trunk with a slight bend and two branches
-  const trunk = new THREE.CylinderGeometry(0.13, 0.2, h, 10, 6);
-  displace(trunk, (v) => { v.x += Math.sin(v.y * 1.6 + seed) * 0.05; v.z += Math.cos(v.y * 1.3) * 0.03; });
-  trunk.translate(0, h / 2, 0);
-  const br = [];
-  for (let i = 0; i < 3; i++) { const a = r() * Math.PI * 2; br.push(at(new THREE.CylinderGeometry(0.05, 0.09, 0.9, 7), Math.cos(a) * 0.25, h + 0.25, Math.sin(a) * 0.25, Math.sin(a) * 0.7, 0, -Math.cos(a) * 0.7)); }
-  grp.add(mesh(merge([trunk, ...br]), m.bark));
-  const blobs = [], centers = [];
-  const n = 6 + ((r() * 3) | 0);
-  centers.push([0, h + 1.05, 0, 1.0]);
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + r() * 0.5, d = 0.55 + r() * 0.3;
-    centers.push([Math.cos(a) * d, h + 0.75 + r() * 0.65, Math.sin(a) * d, 0.55 + r() * 0.25]);
-  }
-  centers.forEach(([x, y, z, rad], i) => blobs.push(foliageBlob(x, y, z, rad, seed + i * 3.1)));
-  const foliage = mesh(merge(blobs), fruit ? m.foliage.clone() : m.foliage); grp.add(foliage);
-  // thousands of little leaves on the outside of the canopy, so the edges look leafy instead of smooth
-  grp.add(aoBlob(1.9, 1.9, 0.5));
+  // Faceted low-poly apple tree from the Design art pack: a sturdy trunk and four rounded crown blobs.
+  const r = rand(seed), grp = new THREE.Group(), S = 1.22;
+  const trunk = bakeStatic((() => { const t = new THREE.Group(); OB.cyl(t, 0.13 * S, 0.2 * S, 1.1 * S, '#8B5A34', 0, 0.55 * S, 0, 8); return t; })());
+  grp.add(trunk);
+  const blobs = [[0, 1.6, 0, 0.95], [-0.5, 1.4, 0.35, 0.68], [0.55, 1.35, -0.2, 0.62], [0.1, 2.1, 0.2, 0.55]].map(([x, y, z, rad], i) => foliageBlob(x * S, y * S, z * S, rad * S * (0.95 + r() * 0.1), seed + i, ...TREE_GREENS[i]));
+  const foliage = mesh(merge(blobs), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true }));
+  grp.add(foliage);
   const apples = [];
   if (fruit) {
-    // Hang apples just outside the canopy, mostly on the lower half so they're easy to see
     const rr = rand(seed * 13);
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2 + rr() * 0.4, el = -0.15 + rr() * 0.6;
-      const p = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el)).multiplyScalar(1.3).add(new THREE.Vector3(0, h + 0.95, 0));
-      const ap = makeApple(true); ap.position.copy(p); ap.rotation.set(rr() * 0.6, rr() * 6, rr() * 0.6); ap.scale.setScalar(0.95);
+    for (let i = 0; i < 8; i++) {
+      const a = i * 0.79 + rr() * 0.5, h = 1.15 + rr() * 0.85;
+      const rad = (0.98 - Math.abs(h - 1.55) * 0.35) * S;
+      const ap = makeApple(); ap.position.set(Math.cos(a) * rad, h * S, Math.sin(a) * rad + 0.12); ap.rotation.set(rr() * 0.4, rr() * 6, rr() * 0.4); ap.scale.setScalar(0.85);
       grp.add(ap); apples.push({ mesh: ap, grow: 1 });
     }
   }
   return { group: grp, apples, foliage };
 }
-
 function makeGrass(scene, avoid) {
-  // tuft = 5 thin curved blades
-  const blades = [], r = rand(31);
-  for (let i = 0; i < 5; i++) {
-    const b = new THREE.PlaneGeometry(0.035, 0.2, 1, 2); b.translate(0, 0.1, 0);
-    displace(b, (v) => { v.z += v.y * v.y * 1.4; v.x *= 1 - v.y * 3.6; });
-    blades.push(at(b, (r() - 0.5) * 0.12, 0, (r() - 0.5) * 0.12, 0, r() * Math.PI * 2, (r() - 0.5) * 0.4, 0.7 + r() * 0.6));
-  }
-  const geo = merge(blades);
-  paint(geo, (x, y, z, c) => c.set(0x5a9a34).lerp(new THREE.Color(0xb4e070), THREE.MathUtils.clamp(y / 0.22, 0, 1)));
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
-  const wind = { value: 0 };
-  mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uTime = wind;
-    sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-      `#include <begin_vertex>
-      vec2 wp = vec2(instanceMatrix[3][0], instanceMatrix[3][2]);
-      float sway = sin(uTime * 1.6 + wp.x * 0.6 + wp.y * 0.4) * 0.06 + sin(uTime * 2.7 + wp.x) * 0.02;
-      transformed.x += sway * position.y * 3.0; transformed.z += sway * position.y * 1.5;`);
-  };
-  const N = 5200, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
+  // Little grass spikes and flower clumps dotted about, as in the Design renders.
+  const r = rand(31);
+  const tuft = merge([0, 1, 2].map((i) => at(new THREE.ConeGeometry(0.045, 0.2 - i * 0.03, 3), (i - 1) * 0.06, 0.09, (i % 2) * 0.05)));
+  const N = 900, im = new THREE.InstancedMesh(tuft, new THREE.MeshStandardMaterial({ color: 0x6ab233, roughness: 1, flatShading: true }), N);
   const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
-  let k = 0, tries = 0;
-  while (k < N && tries < N * 6) {
-    tries++;
-    const x = (r() - 0.5) * 68, z = (r() - 0.5) * 36;
-    if (pathAmount(x, z) > 0.05 || avoid(x, z)) continue;
-    if (fbm(x * 0.4, 5, z * 0.4) < -0.25) continue; // leave natural bare patches
-    q.setFromEuler(new THREE.Euler(0, r() * 6.28, 0));
-    const s = 0.7 + r() * 0.7;
-    mtx.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s, s * (0.8 + r() * 0.5), s));
-    im.setMatrixAt(k, mtx); im.setColorAt(k, col.setHSL(0.25 + r() * 0.05, 0.35, 0.55 + r() * 0.2)); k++;
+  let k = 0;
+  for (let t = 0; t < N * 6 && k < N; t++) {
+    const x = (r() - 0.5) * 66, z = (r() - 0.5) * 34;
+    if (pathAmount(x, z) > 0.02 || avoid(x, z)) continue;
+    q.setFromEuler(new THREE.Euler(0, r() * 6.28, 0)); const sc = 0.8 + r() * 0.6;
+    mtx.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(sc, sc, sc)); im.setMatrixAt(k++, mtx);
   }
-  im.count = k; scene.add(im);
-  // little flowers dotted in the grass
-  const fg = merge([at(new THREE.SphereGeometry(0.05, 6, 5), 0, 0.2, 0), at(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 3), 0, 0.1, 0)]);
-  paint(fg, (x, y, z, c) => c.set(y > 0.16 ? 0xffffff : 0x4a7a30));
-  const fm = new THREE.InstancedMesh(fg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }), 1000);
-  const fc = [0xfff6e0, 0xf4d35e, 0xe58fb0, 0xb7a6e8, 0xffffff];
+  im.count = k; im.receiveShadow = true; scene.add(im);
+  const fl = merge([paint(at(new THREE.CylinderGeometry(0.015, 0.015, 0.22, 4), 0, 0.11, 0), (x, y, z, c) => c.set(0x3e9a30)), paint(at(new THREE.SphereGeometry(0.075, 8, 6), 0, 0.24, 0, 0, 0, 0, new THREE.Vector3(1, 0.6, 1)), (x, y, z, c) => c.set(0xffffff))]);
+  const fm = new THREE.InstancedMesh(fl, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), 700);
+  const fc = [0xff7fa6, 0xffffff, 0xffd23f, 0xb98cff];
   k = 0;
-  for (let i = 0; i < 2800 && k < 1000; i++) {
-    const x = (r() - 0.5) * 68, z = (r() - 0.5) * 36;
-    if (pathAmount(x, z) > 0.05 || avoid(x, z)) continue;
-    mtx.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(1, 0.7 + r() * 0.6, 1));
-    fm.setMatrixAt(k, mtx); fm.setColorAt(k, col.set(fc[(r() * fc.length) | 0])); k++;
+  for (let t = 0; t < 300 && k < 700; t++) {
+    const cx = (r() - 0.5) * 64, cz = (r() - 0.5) * 32;
+    if (pathAmount(cx, cz) > 0.02 || avoid(cx, cz)) continue;
+    for (let j = 0; j < 6 && k < 700; j++) {
+      const x = cx + (r() - 0.5) * 0.9, z = cz + (r() - 0.5) * 0.9;
+      mtx.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(1, 0.8 + r() * 0.4, 1)); fm.setMatrixAt(k, mtx); fm.setColorAt(k++, col.set(fc[j % 4]));
+    }
   }
   fm.count = k; scene.add(fm);
-  return wind;
+  return { value: 0 };
 }
-
 function makeForest(scene) {
-  // Instanced trees beyond the fence so the farm sits in a green valley
+  // A ring of low-poly pines, round trees and bushes beyond the fence, so the farm sits in a green valley.
   const r = rand(91);
-  const canopy = merge([foliageBlob(0, 2.6, 0, 1.3, 1, 0x6f9e48, 0x2f5a26, 2), foliageBlob(0.6, 2.1, 0.3, 0.9, 2, 0x6f9e48, 0x2f5a26, 2), foliageBlob(-0.5, 2.2, -0.3, 0.95, 3, 0x6f9e48, 0x2f5a26, 2)]);
-  const pine = merge([0, 1, 2, 3].map((i) => paint(at(new THREE.ConeGeometry(1.3 - i * 0.26, 1.5, 9), 0, 1.6 + i * 0.8, 0), (x, y, z, c) => c.set(0x2f5a33).lerp(new THREE.Color(0x5d8a4a), THREE.MathUtils.clamp((y - 1) / 4, 0, 1)))));
-  const trunk = at(new THREE.CylinderGeometry(0.15, 0.22, 1.8, 7), 0, 0.9, 0);
-  const N = 260;
-  const ic = new THREE.InstancedMesh(canopy, mats().foliage, N), ip = new THREE.InstancedMesh(pine, mats().foliage, N), it = new THREE.InstancedMesh(trunk, mats().bark, N * 2);
-  for (const m of [ic, ip, it]) { m.castShadow = true; m.receiveShadow = true; }
-  const mtx = new THREE.Matrix4(), col = new THREE.Color();
-  let a = 0, b = 0, t = 0;
+  const pine = bakeGeo((g) => OB.pine(g, 0, 0, 1.25)), round = bakeGeo((g) => { OB.cyl(g, 0.13, 0.2, 1.1, '#8B5A34', 0, 0.55, 0, 8); for (const [x, y, z, rad, c] of [[0, 1.6, 0, 0.95, '#45A535'], [-0.5, 1.4, 0.35, 0.68, '#5BBE40'], [0.55, 1.35, -0.2, 0.62, '#3C952E'], [0.1, 2.1, 0.2, 0.55, '#72D054']]) OB.add(g, new THREE.IcosahedronGeometry(rad, 1), OB.F(c), x, y, z); }), bush = bakeGeo((g) => OB.bush(g, 0, 0, 1.2));
+  const N = 240;
+  const ip = new THREE.InstancedMesh(pine, VC, N), ir = new THREE.InstancedMesh(round, VC, N), ib = new THREE.InstancedMesh(bush, VC, N);
+  for (const m of [ip, ir, ib]) { m.castShadow = true; m.receiveShadow = true; }
+  const mtx = new THREE.Matrix4();
+  let a = 0, b = 0, c = 0;
+  const put = (x, z) => {
+    const s = 1.1 + r() * 0.9;
+    mtx.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, r() * 6, 0)), new THREE.Vector3(s, s * (0.9 + r() * 0.25), s));
+    const k = r();
+    if (k < 0.45 && a < N) ip.setMatrixAt(a++, mtx); else if (k < 0.8 && b < N) ir.setMatrixAt(b++, mtx); else if (c < N) ib.setMatrixAt(c++, mtx);
+  };
   for (let i = 0; i < N * 4; i++) {
     const ang = r() * Math.PI * 2, d = 19 + r() * 26;
     const x = Math.cos(ang) * d * 1.9, z = Math.sin(ang) * d;
     if (Math.abs(x) < 3.5 && z > 14) continue; // keep the road clear
     if (Math.abs(x) < BOUNDS.maxX + 2.5 && z > BOUNDS.minZ - 2.5 && z < BOUNDS.maxZ + 2.5) continue;
-    const s = 0.9 + r() * 0.9;
-    mtx.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, r() * 6, 0)), new THREE.Vector3(s, s * (0.9 + r() * 0.3), s));
-    if (r() > 0.45 && a < N) { ic.setMatrixAt(a, mtx); ic.setColorAt(a++, col.setHSL(0.25 + r() * 0.04, 0.3, 0.75 + r() * 0.3)); }
-    else if (b < N) { ip.setMatrixAt(b, mtx); ip.setColorAt(b++, col.setHSL(0.3, 0.2, 0.8 + r() * 0.25)); }
-    else continue;
-    it.setMatrixAt(t++, mtx);
+    put(x, z);
   }
-  ic.count = a; ip.count = b; it.count = t;
-  scene.add(ic, ip, it);
+  // a hedge of bushes and trees just outside the back fence, where the camera looks
+  for (let x = BOUNDS.minX; x < BOUNDS.maxX; x += 1.6 + r() * 0.8) { put(x, BOUNDS.minZ - 1.6 - r() * 1.2); }
+  ip.count = a; ir.count = b; ib.count = c;
+  scene.add(ip, ir, ib);
 }
-
 function makeFence(scene) {
-  // White picket fence round the whole farm, plus inner fences that come down when you buy new land.
-  const picket = merge([new THREE.BoxGeometry(0.09, 0.85, 0.035).translate(0, 0.42, 0), at(new THREE.ConeGeometry(0.064, 0.09, 4), 0, 0.89, 0, 0, Math.PI / 4, 0, new THREE.Vector3(1, 1, 0.4))]);
+  // Wooden post-and-rail fence round the whole farm, plus inner fences that come down when you buy new land.
   const { minX, maxX, minZ, maxZ } = BOUNDS;
-  const line = (parent, segs) => {
-    const pts = [];
-    const add = (x1, z1, x2, z2) => { const L = Math.hypot(x2 - x1, z2 - z1), n = Math.floor(L / 0.22); for (let i = 0; i <= n; i++) { const t = i / n; pts.push([x1 + (x2 - x1) * t, z1 + (z2 - z1) * t, Math.atan2(x2 - x1, z2 - z1)]); } };
-    segs.forEach((s) => add(...s));
-    const im = new THREE.InstancedMesh(picket, mats().white, pts.length); im.castShadow = true; im.receiveShadow = true;
-    const mtx = new THREE.Matrix4();
-    pts.forEach(([x, z, a], i) => { mtx.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, a + Math.PI / 2, 0)), new THREE.Vector3(1, 1, 1)); im.setMatrixAt(i, mtx); });
-    parent.add(im);
-    for (const [x1, z1, x2, z2] of segs) for (const y of [0.3, 0.65]) { const L = Math.hypot(x2 - x1, z2 - z1); const r = mesh(new THREE.BoxGeometry(L, 0.06, 0.03), mats().white); r.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); r.rotation.y = -Math.atan2(z2 - z1, x2 - x1); r.position.z += 0.03; parent.add(r); }
-  };
+  const line = (parent, segs) => { const g = new THREE.Group(); for (const sg of segs) OB.fence(g, ...sg); parent.add(bakeStatic(g)); };
   const x0 = minX - 0.4, x1 = maxX + 0.4, z0 = minZ - 0.4, z1 = maxZ + 0.4;
   line(scene, [[x0, z0, x1, z0], [x0, z0, x0, z1], [x1, z0, x1, z1], [x0, z1, -1.6, z1], [1.6, z1, x1, z1]]);
   const dividers = {};
@@ -405,11 +297,11 @@ function makeFence(scene) {
     const g = new THREE.Group(); scene.add(g); dividers[id] = g;
     line(g, [[x, z0, x, z1]]);
   }
-  // gate posts
-  for (const x of [-1.7, 1.7]) { const p = mesh(at(new THREE.BoxGeometry(0.22, 1.5, 0.22), x, 0.75, maxZ + 0.4), mats().woodDark); scene.add(p); scene.add(mesh(at(new THREE.SphereGeometry(0.14, 10, 8), x, 1.58, maxZ + 0.4), mats().woodDark)); }
+  const gp = new THREE.Group();
+  for (const x of [-1.7, 1.7]) { OB.rb(gp, 0.26, 1.3, 0.26, '#9A6237', x, 0.65, maxZ + 0.4, 0.05); OB.sph(gp, 0.16, '#C9884C', x, 1.36, maxZ + 0.4); }
+  scene.add(bakeStatic(gp));
   return dividers;
 }
-
 // ---------- buildings ----------
 export function shingleRoof(w, d, rise, color = 0xc8553d) {
   // Two sloped roof faces covered with overlapping, slightly varied clay shingles.
@@ -442,12 +334,8 @@ export function shingleRoof(w, d, rise, color = 0xc8553d) {
   grp.add(ridge);
   return grp;
 }
-function signTex(text, bg = '#3b5a32', fg = '#fbf1df') {
-  return canvasTex(512, 160, (c, w, h) => {
-    c.fillStyle = bg; c.fillRect(0, 0, w, h);
-    c.strokeStyle = '#e9b44c'; c.lineWidth = 10; c.strokeRect(10, 10, w - 20, h - 20);
-    c.fillStyle = fg; c.font = 'bold 84px Georgia, "Times New Roman", serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, w / 2, h / 2 + 4);
-  });
+function signTex(text, bg = '#FFF6E6', fg = '#2B1D14') {
+  return canvasTex(512, 128, (c, w, h) => { c.fillStyle = bg; c.fillRect(0, 0, w, h); c.fillStyle = fg; c.font = '700 76px Fredoka, "Nunito", ui-rounded, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, w / 2, h / 2 + 4); });
 }
 function windowAt(grp, x, y, z, w = 0.8, h = 0.9, box = true) {
   const m = mats();
@@ -465,79 +353,45 @@ function windowAt(grp, x, y, z, w = 0.8, h = 0.9, box = true) {
   }
 }
 function makeBakery() {
-  const g = new THREE.Group(), m = mats();
-  const W = 7, D = 4.4, H = 3;
-  g.add(mesh(at(new THREE.BoxGeometry(W + 0.2, 0.45, D + 0.2), 0, 0.22, 0), m.stone));
-  const walls = mesh(at(new THREE.BoxGeometry(W, H, D), 0, 0.45 + H / 2, 0), m.plaster); g.add(walls);
-  // timber frame
-  const top = 0.45 + H;
-  for (const z of [D / 2 + 0.01, -D / 2 - 0.01]) {
-    g.add(mesh(at(new THREE.BoxGeometry(W + 0.05, 0.16, 0.1), 0, 0.5, z), m.beam), mesh(at(new THREE.BoxGeometry(W + 0.05, 0.16, 0.1), 0, top - 0.08, z), m.beam), mesh(at(new THREE.BoxGeometry(W + 0.05, 0.12, 0.1), 0, 0.45 + H * 0.55, z), m.beam));
-    for (const x of [-W / 2, -W / 4 - 0.4, W / 4 + 0.4, W / 2]) g.add(mesh(at(new THREE.BoxGeometry(0.16, H, 0.1), x, 0.45 + H / 2, z), m.beam));
-  }
-  for (const x of [-W / 2 - 0.01, W / 2 + 0.01]) for (const z of [-D / 2, 0, D / 2]) g.add(mesh(at(new THREE.BoxGeometry(0.1, H, 0.16), x, 0.45 + H / 2, z), m.beam));
-  // gables
-  const rise = 1.7;
-  const gs = new THREE.Shape(); gs.moveTo(-D / 2, 0); gs.lineTo(D / 2, 0); gs.lineTo(0, rise); gs.lineTo(-D / 2, 0);
-  for (const s of [-1, 1]) { const gm = mesh(new THREE.ShapeGeometry(gs), m.plaster); gm.rotation.y = s * Math.PI / 2; gm.position.set(s * W / 2, top, 0); g.add(gm); }
-  const roof = shingleRoof(W, D, rise); roof.position.y = top; g.add(roof);
-  // chimney
-  g.add(mesh(at(new THREE.BoxGeometry(0.6, 1.8, 0.6), 2.1, top + 1.3, -0.8), m.brick));
-  g.add(mesh(at(new THREE.BoxGeometry(0.72, 0.12, 0.72), 2.1, top + 2.2, -0.8), m.stone));
-  // door with arched frame
-  const dz = D / 2 + 0.02;
-  g.add(mesh(at(new THREE.BoxGeometry(1.25, 2.1, 0.1), 0, 0.45 + 1.05, dz), m.beam));
-  g.add(mesh(at(new THREE.BoxGeometry(1.05, 1.95, 0.08), 0, 0.45 + 0.99, dz + 0.03), new THREE.MeshStandardMaterial({ color: 0x5f8a6a, roughness: 0.6 })));
-  for (let i = 0; i < 4; i++) g.add(mesh(at(new THREE.BoxGeometry(0.02, 1.9, 0.02), -0.36 + i * 0.24, 0.45 + 0.99, dz + 0.08), m.beam, false));
-  g.add(mesh(at(new THREE.SphereGeometry(0.05, 8, 6), 0.38, 1.4, dz + 0.1), m.gold, false));
-  // shop sign above the door
-  const sign = mesh(at(new THREE.PlaneGeometry(2.2, 0.68), 0, 0.45 + 2.6, dz + 0.08), new THREE.MeshStandardMaterial({ map: signTex('Bakery'), roughness: 0.6 }), false);
-  g.add(sign);
-  windowAt(g, -2.3, 0.45 + 1.45, dz, 1.1, 1.0); windowAt(g, 2.3, 0.45 + 1.45, dz, 1.1, 1.0);
-  // awning over the front
-  const aw = mesh(at(new THREE.PlaneGeometry(6.6, 1.1), 0, 0.45 + 2.15, dz + 0.45, -1.0), m.awning, true, true); g.add(aw);
-  // steps
-  g.add(mesh(at(new THREE.BoxGeometry(1.8, 0.18, 0.6), 0, 0.09, dz + 0.3), m.stone));
-  // crates and barrels to the sides
-  const b1 = makeBarrel(); b1.position.set(-3.2, 0, dz + 0.6); g.add(b1);
-  const c1 = makeCrate(); c1.position.set(3.2, 0, dz + 0.55); c1.rotation.y = 0.2; g.add(c1);
-  g.add(aoBlob(4.4, 3.2, 0.5));
-  return { group: g, chimneyTop: new THREE.Vector3(2.1, top + 2.3, -0.8) };
+  // The bakery: the Design cottage, scaled up to fill its plot, with a sign over the door.
+  const g = new THREE.Group(), k = 1.6;
+  const c = new THREE.Group(); c.scale.setScalar(k); g.add(c);
+  const T = THREE;
+  const { rb, sph, add, G, M } = OB;
+  rb(c, 4.2, 0.25, 3.2, '#C9C3B3', 0, 0.12, 0, 0.06);
+  rb(c, 4.0, 2.3, 3.0, '#FFF1D9', 0, 1.35, 0, 0.1);
+  [-1.95, 1.95].forEach((sx) => rb(c, 0.16, 2.3, 0.16, '#9A6237', sx, 1.35, 1.48, 0.03));
+  rb(c, 4.1, 0.16, 0.16, '#9A6237', 0, 2.45, 1.48, 0.03);
+  const rf = G(c, 0, 2.5, 0);
+  rb(rf, 2.75, 0.22, 3.6, '#E0402F', -1.08, 0.82, 0, 0.06, { rz: 0.62 }); rb(rf, 2.75, 0.22, 3.6, '#C2321F', 1.08, 0.82, 0, 0.06, { rz: -0.62 });
+  const gab = new T.Shape(); gab.moveTo(-2, 0); gab.lineTo(2, 0); gab.lineTo(0, 1.45); gab.lineTo(-2, 0);
+  add(rf, new T.ExtrudeGeometry(gab, { depth: 2.9, bevelEnabled: false }), M('#FFE6C2'), 0, -0.05, -1.45);
+  rb(c, 0.5, 1.4, 0.5, '#A54C2C', 1.1, 4.0, -0.5, 0.05); rb(c, 0.62, 0.14, 0.62, '#8A3A20', 1.1, 4.72, -0.5, 0.03);
+  rb(c, 0.9, 1.5, 0.1, '#8B4E2A', 0, 0.95, 1.52, 0.06); sph(c, 0.05, '#F7C232', 0.28, 0.95, 1.6);
+  [-1.25, 1.25].forEach((sx) => {
+    rb(c, 0.9, 0.8, 0.08, M('#FFD45A', { emissive: '#FFB62E', emissiveIntensity: 0.6 }), sx, 1.45, 1.52, 0.04);
+    rb(c, 1.0, 0.1, 0.12, '#9A6237', sx, 1.88, 1.56, 0.03); rb(c, 1.0, 0.1, 0.12, '#9A6237', sx, 1.02, 1.56, 0.03);
+    rb(c, 0.08, 0.8, 0.1, '#9A6237', sx, 1.45, 1.56, 0.02); rb(c, 0.9, 0.08, 0.1, '#9A6237', sx, 1.45, 1.56, 0.02);
+    rb(c, 1.0, 0.22, 0.3, '#9A6237', sx, 0.88, 1.68, 0.04);
+    for (let i = 0; i < 4; i++) sph(c, 0.1, ['#FF6F9C', '#FFD23F', '#FFFFFF', '#FF6F9C'][i], sx - 0.33 + i * 0.22, 1.04, 1.68);
+  });
+  const aw = G(c, 0, 2.15, 1.75); aw.rotation.x = 0.45;
+  for (let i = 0; i < 5; i++) rb(aw, 0.3, 0.06, 0.6, i % 2 ? '#FFF6E6' : '#E8392F', -0.6 + i * 0.3, 0, 0, 0.02);
+  rb(c, 2.2, 0.55, 0.12, '#FFF6E6', 0, 2.75, 1.62, 0.08); rb(c, 2.3, 0.65, 0.08, '#8B4E2A', 0, 2.75, 1.56, 0.08);
+  const out = bakeStatic(g);
+  out.add(mesh(at(new THREE.PlaneGeometry(2.0 * k, 0.46 * k), 0, 2.75 * k, 1.69 * k), new THREE.MeshBasicMaterial({ map: signTex('Bakery', '#FFF6E6', '#7A2E1E'), toneMapped: false }), false, false));
+  return { group: out, chimneyTop: new THREE.Vector3(1.1 * k, 4.8 * k, -0.5 * k) };
 }
-
 function makeOven(kind) {
-  // A wood-fired brick oven on a stone base, with a glowing mouth and its own little chimney.
-  const g = new THREE.Group(), m = mats();
-  const bread = kind === 'bread';
-  g.add(mesh(at(new THREE.BoxGeometry(2.6, 1.0, 2.4), 0, 0.5, 0), m.stone));
-  g.add(mesh(at(new THREE.BoxGeometry(2.8, 0.12, 2.6), 0, 1.06, 0), new THREE.MeshStandardMaterial({ map: textures2().slab, roughness: 0.8 })));
-  const dome = new THREE.SphereGeometry(1.1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2);
-  const domeMat = bread ? new THREE.MeshStandardMaterial({ map: mats().plaster.map, color: 0xf6efe4, roughness: 0.9 }) : m.brick;
-  const d = mesh(dome, domeMat); d.position.y = 1.1; d.scale.set(1, bread ? 0.85 : 0.95, 1); g.add(d);
-  // brick arch around the mouth
-  const arch = new THREE.TorusGeometry(0.48, 0.12, 10, 24, Math.PI);
-  g.add(mesh(at(arch, 0, 1.12, 1.0), m.brick));
-  for (const s of [-1, 1]) g.add(mesh(at(new THREE.BoxGeometry(0.24, 0.3, 0.3), s * 0.48, 1.26, 1.0), m.brick));
-  // dark interior + fire
-  g.add(mesh(at(new THREE.CircleGeometry(0.46, 24, 0, Math.PI), 0, 1.12, 0.93), m.dark, false));
-  const fire = new THREE.Group(); fire.position.set(0, 1.14, 0.75); g.add(fire);
-  for (let i = 0; i < 5; i++) {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(0.07 + (i % 2) * 0.03, 0.22 + (i % 3) * 0.06, 7), i % 2 ? m.fire : m.ember);
-    f.position.set((i - 2) * 0.09, 0.1, -((i % 2) * 0.08)); fire.add(f);
-  }
-  for (let i = 0; i < 4; i++) fire.add(mesh(at(new THREE.CylinderGeometry(0.035, 0.035, 0.4, 6), (i - 1.5) * 0.08, 0.02, -0.05, 0, i, Math.PI / 2), m.beam, false));
-  const glow = new THREE.PointLight(0xff8a3a, 2.5, 3.5, 2); glow.position.set(0, 1.4, 1.35); g.add(glow);
-  // chimney
-  g.add(mesh(at(new THREE.CylinderGeometry(0.16, 0.18, 0.8, 12), 0, 2.3, -0.3), bread ? m.stone : m.brick));
-  // wooden peel leaning on the side, and a bag of flour
-  g.add(mesh(at(new THREE.CylinderGeometry(0.025, 0.025, 1.6, 6), 1.38, 0.8, 0.6, 0.2, 0, -0.25), m.wood));
-  g.add(mesh(at(new THREE.BoxGeometry(0.34, 0.02, 0.4), 1.58, 0.06, 0.7, 0.2, 0, -0.25), m.wood));
-  const sack = new THREE.SphereGeometry(0.28, 16, 12);
-  displace(sack, (v) => { v.y = v.y < 0 ? v.y * 0.6 : v.y * 1.25; v.multiplyScalar(1 + fbm(v.x * 5, v.y * 5, v.z * 5) * 0.06); });
-  g.add(mesh(at(sack, -1.55, 0.2, 0.7), new THREE.MeshStandardMaterial({ color: 0xe9dcc0, roughness: 1 })));
-  g.userData = { fire, glow, smokeAt: new THREE.Vector3(0, 2.75, -0.3) };
-  g.add(aoBlob(1.8, 1.7, 0.5));
-  return g;
+  // The Design oven: brick dome (pies) or white stone (bread), with a glowing door that pulses while baking.
+  const g = new THREE.Group(), k = 1.2;
+  const o = OB.oven(null, 0, 0, 0, kind === 'bread'); o.scale.setScalar(k); g.add(o);
+  const glowMats = [];
+  o.traverse((m) => { if (m.isMesh && m.material.emissiveIntensity > 0.5) { m.material = m.material.clone(); glowMats.push(m.material); } });
+  const out = bakeStatic(g);
+  const glow = { set intensity(v) { for (const m of glowMats) m.emissiveIntensity = 0.7 + v * 0.18; } };
+  out.userData = { fire: null, glow, smokeAt: new THREE.Vector3(0.45 * k, 2.05 * k, -0.35 * k) };
+  return out;
 }
 const T2 = {};
 function textures2() {
@@ -546,48 +400,31 @@ function textures2() {
 }
 
 function makeStall() {
-  const g = new THREE.Group(), m = mats();
-  const W = 3.0, D = 1.0, H = 0.95;
-  g.add(mesh(at(new THREE.BoxGeometry(W, H, D), 0, H / 2, 0), m.wood));
-  g.add(mesh(at(new THREE.BoxGeometry(W + 0.12, 0.06, D + 0.12), 0, H + 0.03, 0), m.woodDark));
-  // cloth drape on the front
-  const cloth = new THREE.PlaneGeometry(W + 0.05, 0.5, 30, 2);
-  displace(cloth, (v) => { v.z += Math.sin(v.x * 9) * 0.02; });
-  g.add(mesh(at(cloth, 0, H - 0.25, D / 2 + 0.03), new THREE.MeshStandardMaterial({ color: 0xf7efe0, roughness: 0.9, side: THREE.DoubleSide })));
-  // two tall back posts hold a short awning, so the goods stay in view from above
-  for (const x of [-1, 1]) g.add(mesh(at(new THREE.CylinderGeometry(0.05, 0.06, 2.6, 8), x * (W / 2 - 0.05), 1.3, -D / 2 - 0.1), m.woodDark));
-  for (const x of [-1, 1]) g.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 0.95, 6), x * (W / 2 - 0.05), 2.3, -0.16, 1.05, 0, 0), m.woodDark));
-  const tilt = 0.5, AD = 1.1;
-  // the awning fades when you stand behind the stall, so you can always see your tray
-  const awnMat = m.awning.clone(), valMat = new THREE.MeshStandardMaterial({ color: 0xc8553d, roughness: 0.85, side: THREE.DoubleSide });
-  const awn = mesh(at(new THREE.PlaneGeometry(W + 0.5, AD), 0, 2.6 - Math.sin(tilt) * AD / 2, -D / 2 - 0.1 + Math.cos(tilt) * AD / 2, -Math.PI / 2 + tilt), awnMat); g.add(awn);
-  g.userData.fadeMats = [awnMat, valMat];
-  const fz = -D / 2 - 0.1 + Math.cos(tilt) * AD, fy = 2.6 - Math.sin(tilt) * AD;
-  // scalloped valance along the front edge
-  const sc = new THREE.Shape(); sc.moveTo(-(W + 0.5) / 2, 0); sc.lineTo((W + 0.5) / 2, 0);
-  const n = 12; for (let i = n; i >= 0; i--) { const x = -(W + 0.5) / 2 + i * (W + 0.5) / n; sc.lineTo(x, -0.2); if (i > 0) sc.quadraticCurveTo(x - (W + 0.5) / n / 2, -0.05, x - (W + 0.5) / n, -0.2); }
-  g.add(mesh(at(new THREE.ShapeGeometry(sc), 0, fy, fz), valMat));
-  // board sign on the front of the counter
-  g.add(mesh(at(new THREE.PlaneGeometry(1.2, 0.37), 0, H - 0.27, D / 2 + 0.05), new THREE.MeshStandardMaterial({ map: signTex('Fresh', '#7a4a2e'), roughness: 0.6 }), false));
-  // baskets and crates for flavour
-  const b = makeBasket(0.7); b.position.set(-1.9, 0, 0.3); g.add(b);
-  const cr = makeCrate(); cr.position.set(1.95, 0, -0.1); cr.rotation.y = 0.15; g.add(cr);
-  g.add(aoBlob(2.0, 1.0, 0.35));
+  // The Design market stall with its red and white awning; the awning fades when you stand behind it.
+  const base = new THREE.Group(), k = 1.08;
+  const st = OB.stall(null, 0, 0, 0, false); st.scale.setScalar(k); base.add(st);
+  st.updateMatrixWorld(true);
+  const awnParts = [];
+  st.traverse((m) => { if (m.isMesh) { const p = new THREE.Vector3(); m.getWorldPosition(p); if (p.y > 2.0) awnParts.push(m); } });
+  const awnRoot = new THREE.Group();
+  for (const m of awnParts) { const w = m.matrixWorld.clone(); m.parent.remove(m); w.decompose(m.position, m.quaternion, m.scale); awnRoot.add(m); }
+  const g = bakeStatic(base);
+  const awn = bakeStatic(awnRoot); const awnMat = VC.clone(); awn.traverse((m) => { if (m.isMesh) m.material = awnMat; }); g.add(awn);
+  g.userData.fadeMats = [awnMat];
   return g;
 }
-
 function makeField() {
   const g = new THREE.Group();
   const { x0, z0, nx, nz } = FIELD;
-  // tilled soil bed
-  const soil = new THREE.PlaneGeometry(nx + 0.4, nz + 0.4, nx * 8, nz * 8); soil.rotateX(-Math.PI / 2);
-  displace(soil, (v) => { v.y = 0.04 + Math.sin(v.z * Math.PI * 2) * 0.04 + fbm(v.x * 3, 0, v.z * 3) * 0.015; });
-  paint(soil, (x, y, z, c) => c.set(0x6b4a30).lerp(new THREE.Color(0x8c6a48), THREE.MathUtils.clamp(y * 10 + fbm(x * 4, 1, z * 4) * 0.4, 0, 1)));
-  const s = mesh(soil, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), false, true);
-  s.position.set(x0 + nx / 2, 0, z0 + nz / 2); g.add(s);
+  // a raised tilled bed, as in the Design art
+  const bed = new THREE.Group();
+  OB.rb(bed, nx + 0.5, 0.22, nz + 0.5, '#9C5E2E', x0 + nx / 2, 0.06, z0 + nz / 2, 0.08);
+  OB.rb(bed, nx + 0.3, 0.06, nz + 0.3, '#B8733B', x0 + nx / 2, 0.17, z0 + nz / 2, 0.03, { cast: false });
+  for (let j = 0; j < nz; j++) OB.rb(bed, nx + 0.1, 0.04, 0.12, '#A8683A', x0 + nx / 2, 0.205, z0 + j + 0.5, 0.02, { cast: false });
+  g.add(bakeStatic(bed));
   const r = rand(55);
-  const clump = wheatStalkGeo(r, 14, 0.85);
-  const im = new THREE.InstancedMesh(clump, mats().wheat, nx * nz * 2); im.castShadow = true; im.receiveShadow = true;
+  const clump = bakeGeo((cg) => { for (let i = 0; i < 4; i++) { const sx = (i % 2 - 0.5) * 0.22 + (r() - 0.5) * 0.06, sz = (Math.floor(i / 2) - 0.5) * 0.22 + (r() - 0.5) * 0.06, hh = 0.55 + r() * 0.15; OB.cyl(cg, 0.02, 0.025, hh, '#C9A13A', sx, hh / 2, sz, 5); OB.add(cg, new THREE.CapsuleGeometry(0.055, 0.16, 3, 6), OB.F('#F4C843'), sx, hh + 0.05, sz); } });
+  const im = new THREE.InstancedMesh(clump, VC, nx * nz * 2); im.castShadow = true; im.receiveShadow = true;
   const cells = [];
   for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
     const cx = x0 + i + 0.5, cz = z0 + j + 0.5;
@@ -595,13 +432,12 @@ function makeField() {
   }
   g.add(im);
   // hay bales and a scarecrow
-  const hay = new THREE.CylinderGeometry(0.45, 0.45, 0.7, 20, 2);
-  paint(hay, (x, y, z, c) => c.set(0xd9b65a).lerp(new THREE.Color(0xb8923a), THREE.MathUtils.clamp(fbm(x * 8, y * 8, z * 8) + 0.4, 0, 1)));
-  const hm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  for (const [x, z, ry] of [[x0 - 0.8, z0 + nz + 0.5, 0.3], [x0 + 0.3, z0 + nz + 1.1, 1.4]]) { const h = mesh(at(hay.clone(), 0, 0.45, 0, Math.PI / 2, ry, 0), hm); h.position.set(x, 0, z); g.add(h); }
-  const sc = makePerson({ seed: 404, shirt: 0xc8553d, pants: 0x5a6a8a, hat: false, hairStyle: 3, skin: 0xe9dcc0 });
-  sc.position.set(x0 + nx + 0.8, 0.2, z0 + 1); sc.userData.arms.forEach((a, i) => { a.sh.rotation.z = (i ? 1 : -1) * 1.45; }); g.add(sc);
-  g.add(mesh(at(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6), x0 + nx + 0.8, 0.5, z0 + 1), mats().wood));
+  const hay = new THREE.Group();
+  for (const [x, z, ry] of [[x0 - 0.8, z0 + nz + 0.5, 0.3], [x0 + 0.3, z0 + nz + 1.1, 1.4]]) { const b = OB.G(hay, x, 0, z, ry); OB.cyl(b, 0.45, 0.45, 0.7, '#F2C25A', 0, 0.45, 0, 16, { rz: Math.PI / 2 }); OB.cyl(b, 0.46, 0.46, 0.08, '#D8A23A', 0, 0.45, 0, 16, { rz: Math.PI / 2 }); }
+  OB.cyl(hay, 0.04, 0.04, 1.4, '#9A6237', x0 + nx + 0.8, 0.5, z0 + 1, 6);
+  g.add(bakeStatic(hay));
+  const sc = makePerson({ seed: 404, shirt: 0xd8392e, pants: 0x2f4a7a, hairStyle: 3, skin: 0xf2c25a });
+  sc.position.set(x0 + nx + 0.8, 0.15, z0 + 1); sc.scale.setScalar(0.8); sc.userData.arms.forEach((a, i) => { a.sh.rotation.z = (i ? 1 : -1) * 1.45; }); g.add(sc);
   return { group: g, im, cells };
 }
 export function updateFieldInstances(field) {
@@ -610,7 +446,7 @@ export function updateFieldInstances(field) {
     const s = Math.max(0.02, c.grow);
     for (let k = 0; k < 2; k++) {
       q.setFromEuler(e.set(0, k ? c.rot2 : c.rot, 0));
-      mtx.compose(new THREE.Vector3(c.x + (k ? 0.18 : -0.18), 0.02, c.z + (k ? -0.1 : 0.12)), q, new THREE.Vector3(0.9 + s * 0.1, s, 0.9 + s * 0.1));
+      mtx.compose(new THREE.Vector3(c.x + (k ? 0.18 : -0.18), 0.2, c.z + (k ? -0.1 : 0.12)), q, new THREE.Vector3(0.9 + s * 0.1, s, 0.9 + s * 0.1));
       field.im.setMatrixAt(c.idx + k, mtx);
     }
     const col = new THREE.Color().setRGB(0.75 + s * 0.25, 0.85 + s * 0.15, 0.6 + s * 0.4 * (s >= 1 ? 1 : 0.6));
@@ -621,124 +457,79 @@ export function updateFieldInstances(field) {
 
 function makeTeaGarden() {
   const g = new THREE.Group(), seats = [];
-  // a round stone terrace with three tables
-  const terr = mesh(at(new THREE.CylinderGeometry(3.4, 3.5, 0.08, 40), 8, 0.04, 11.4), mats().stone, false, true);
-  terr.material = terr.material.clone(); terr.material.map = terr.material.map.clone(); terr.material.map.repeat.set(4, 4); terr.material.map.needsUpdate = true;
-  g.add(terr);
-  const cloth = new THREE.MeshStandardMaterial({ color: 0xfbf1df, roughness: 0.9 });
+  // a round cream terrace with three tables under striped umbrellas
+  const deco = new THREE.Group();
+  OB.cyl(deco, 3.5, 3.5, 0.08, '#F2E3C6', 8, 0.04, 11.4, 40, { cast: false }); OB.cyl(deco, 3.25, 3.25, 0.09, '#FFF1D9', 8, 0.045, 11.4, 40, { cast: false });
+  TEA.forEach(([x, z], i) => {
+    OB.sph(deco, 0.12, '#FFFFFF', x, 0.95, z, { s: [1, 0.85, 1] }); OB.cyl(deco, 0.02, 0.02, 0.12, '#FFFFFF', x + 0.12, 0.96, z, 6, { rz: -1 });
+    for (const sd of [-1, 1]) OB.cyl(deco, 0.05, 0.04, 0.07, '#FFFFFF', x + sd * 0.28, 0.86, z, 12);
+  });
+  for (const [x, z] of [[4.9, 13.6], [11.1, 13.6], [11.4, 9.0]]) { OB.cyl(deco, 0.38, 0.28, 0.5, '#C55F37', x, 0.25, z, 14); OB.bush(deco, x, z - 0.05, 0.9); deco.children[deco.children.length - 1].position.y = 0.45; }
+  g.add(bakeStatic(deco));
+  const cloth = new THREE.MeshStandardMaterial({ color: 0xfff6e6 });
   TEA.forEach(([x, z], i) => {
     const t = makeTable(1.0, 1.0, 0.76, cloth); t.position.set(x, 0.08, z); g.add(t);
-    const u = makeUmbrella(i % 2 ? 0x5f8a6a : 0xc8553d); u.position.set(x, 0.08, z); g.add(u);
-    // tea set: pot and cups
-    const pot = mesh(at(new THREE.SphereGeometry(0.11, 14, 10), x, 0.95, z, 0, 0, 0, new THREE.Vector3(1, 0.85, 1)), mats().white); g.add(pot);
-    g.add(mesh(at(new THREE.CylinderGeometry(0.015, 0.02, 0.12, 6), x + 0.12, 0.96, z, 0, 0, -1), mats().white));
-    for (const s of [-1, 1]) {
-      const ch = makeChair(); ch.position.set(x + s * 0.75, 0.08, z); ch.rotation.y = s * -Math.PI / 2; g.add(ch);
-      g.add(mesh(at(new THREE.CylinderGeometry(0.045, 0.035, 0.06, 12), x + s * 0.28, 0.85, z), mats().white));
-      seats.push({ x: x + s * 0.75, z, face: s > 0 ? -Math.PI / 2 : Math.PI / 2, busy: null });
+    const u = makeUmbrella(i % 2 ? 0x45a535 : 0xe8392f); u.position.set(x, 0.08, z); g.add(u);
+    for (const sd of [-1, 1]) {
+      const ch = makeChair(); ch.position.set(x + sd * 0.75, 0.08, z); ch.rotation.y = sd * -Math.PI / 2; g.add(ch);
+      seats.push({ x: x + sd * 0.75, z, face: sd > 0 ? -Math.PI / 2 : Math.PI / 2, busy: null });
     }
   });
-  // planters
-  for (const [x, z] of [[4.9, 13.6], [11.1, 13.6], [11.4, 9.0]]) {
-    const pot = mesh(at(new THREE.CylinderGeometry(0.35, 0.26, 0.5, 14), x, 0.25, z), new THREE.MeshStandardMaterial({ color: 0xb8653d, roughness: 0.8 })); g.add(pot);
-    g.add(mesh(merge([foliageBlob(x, 0.75, z, 0.38, x * 3)]), mats().foliage));
-  }
   return { group: g, seats };
 }
-
 function makeFlowerGarden() {
-  const g = new THREE.Group();
-  const r = rand(66);
-  const beds = [[-6.5, 11.5, 2.6, 1.2], [-9.8, 11.5, 2.6, 1.2], [-8.2, 9.3, 4.6, 0.9]];
-  for (const [x, z, w, d] of beds) {
-    g.add(mesh(at(new THREE.BoxGeometry(w + 0.2, 0.22, d + 0.2), x, 0.11, z), mats().woodDark));
-    g.add(mesh(at(new THREE.BoxGeometry(w, 0.05, d), x, 0.22, z), new THREE.MeshStandardMaterial({ color: 0x5a3e28, roughness: 1 }), false, true));
-    for (let i = 0; i < w * d * 14; i++) {
-      const fx = x + (r() - 0.5) * w * 0.92, fz = z + (r() - 0.5) * d * 0.9, h = 0.2 + r() * 0.25;
-      g.add(mesh(at(new THREE.CylinderGeometry(0.01, 0.01, h, 3), fx, 0.22 + h / 2, fz), mats().leaf, false, false));
-      const col = [0xe58fb0, 0xf4d35e, 0xfff6e0, 0xc8553d, 0xb7a6e8, 0xf29e4c][(r() * 6) | 0];
-      const fl = mesh(at(new THREE.SphereGeometry(0.06 + r() * 0.03, 8, 6), fx, 0.24 + h, fz, 0, 0, 0, new THREE.Vector3(1, 0.6, 1)), new THREE.MeshStandardMaterial({ color: col, roughness: 0.6 }), true, false);
-      g.add(fl);
-    }
-  }
+  const g = new THREE.Group(), beds = new THREE.Group();
+  for (const [x, z, w, d] of [[-6.5, 11.5, 2.6, 1.2], [-9.8, 11.5, 2.6, 1.2], [-8.2, 9.3, 4.6, 0.9]]) OB.field(beds, x, z, w + 0.3, d + 0.4, 'flowers');
+  g.add(bakeStatic(beds));
   const b = makeBench(); b.position.set(-8.2, 0, 13.4); b.rotation.y = Math.PI; g.add(b);
   const l = makeLamp(); l.position.set(-4.8, 0, 12.6); g.add(l);
   return g;
 }
-
 function makeJamKitchen() {
-  // An open-sided wooden shelter over a stone stove with a big copper jam pot.
-  const g = new THREE.Group(), m = mats();
-  for (const [x, z] of [[-1.3, -0.9], [1.3, -0.9], [-1.3, 0.9], [1.3, 0.9]]) g.add(mesh(at(new THREE.BoxGeometry(0.14, 2.3, 0.14), x, 1.15, z), m.beam));
-  const roof = shingleRoof(2.9, 2.0, 0.8, 0x8a5a3c); roof.position.y = 2.3; g.add(roof);
-  g.add(mesh(at(new THREE.BoxGeometry(1.7, 0.75, 1.1), 0, 0.37, -0.2), m.stone));
-  g.add(mesh(at(new THREE.CircleGeometry(0.2, 16, 0, Math.PI), 0, 0.3, 0.36), m.dark, false));
-  const fire = new THREE.Group(); fire.position.set(0, 0.25, 0.25); g.add(fire);
-  for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 6), i % 2 ? m.fire : m.ember); f.position.set((i - 1) * 0.07, 0.05, 0); fire.add(f); }
-  const copper = new THREE.MeshStandardMaterial({ color: 0xc8744a, metalness: 0.9, roughness: 0.3 });
-  const pot = new THREE.LatheGeometry([[0, 0], [0.32, 0.02], [0.42, 0.12], [0.45, 0.32], [0.47, 0.36], [0.44, 0.36]].map(([r, y]) => new THREE.Vector2(r, y)), 32);
-  g.add(mesh(at(pot, 0, 0.75, -0.2), copper));
-  g.add(mesh(at(new THREE.CircleGeometry(0.43, 28), 0, 1.06, -0.2, -Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x7e161b, roughness: 0.2, clearcoat: 0.8 }), false));
-  g.add(mesh(at(new THREE.CylinderGeometry(0.02, 0.02, 0.8, 6), 0.15, 1.3, -0.2, 0, 0, 0.5), m.wood));
-  // shelf of finished jars at the back
-  g.add(mesh(at(new THREE.BoxGeometry(2.4, 0.05, 0.35), 0, 1.3, -0.85), m.wood));
-  for (let i = 0; i < 8; i++) { const j = makeJam(); j.position.set(-1.0 + i * 0.28, 1.33, -0.85); j.scale.setScalar(0.9); g.add(j); }
-  const b = makeBarrel(); b.position.set(1.6, 0, -0.6); b.scale.setScalar(0.8); g.add(b);
-  g.add(mesh(at(new THREE.PlaneGeometry(1.6, 0.5), 0, 2.15, 1.02), new THREE.MeshStandardMaterial({ map: signTex('Jam', '#7a2a2a'), roughness: 0.6 }), false));
-  g.userData = { fire, smokeAt: new THREE.Vector3(0, 1.4, -0.2) };
-  g.add(aoBlob(2.0, 1.6, 0.5));
-  return g;
+  // The Design jam kitchen (a stove with a big red jam pot) under a simple wooden roof.
+  const g = new THREE.Group(), k = 1.45;
+  const jk = OB.jamKitchen(null, 0, -0.2); jk.scale.setScalar(k); g.add(jk);
+  const glowMats = [];
+  jk.traverse((m) => { if (m.isMesh && m.material.emissiveIntensity > 0.5) { m.material = m.material.clone(); glowMats.push(m.material); } });
+  const roof = new THREE.Group(); g.add(roof);
+  for (const [x, z] of [[-1.3, -0.9], [1.3, -0.9]]) OB.rb(roof, 0.16, 2.5, 0.16, '#9A6237', x, 1.25, z, 0.04);
+  OB.rb(roof, 3.0, 0.16, 1.4, '#E0402F', 0, 2.55, -0.45, 0.06, { rx: 0.35 });
+  OB.rb(roof, 2.6, 0.08, 0.34, '#B9773F', 0, 1.6, -0.85, 0.03);
+  for (let i = 0; i < 6; i++) OB.jar(roof, -1.0 + i * 0.4, 1.64, -0.85, 0.85, i % 2 ? '#7C2BA0' : '#C8263D');
+  const out = bakeStatic(g);
+  out.userData = { fire: null, glow: { set intensity(v) { for (const m of glowMats) m.emissiveIntensity = 0.7 + v * 0.18; } }, smokeAt: new THREE.Vector3(-0.3, 2.0, -0.2) };
+  return out;
 }
 function makeCart() {
-  // A little farm cart for selling spare fruit and grain.
-  const g = new THREE.Group(), m = mats();
-  g.add(mesh(at(new THREE.BoxGeometry(1.5, 0.08, 0.95), 0, 0.62, 0), m.wood));
-  for (const z of [-0.47, 0.47]) g.add(mesh(at(new THREE.BoxGeometry(1.5, 0.32, 0.05), 0, 0.8, z), m.wood));
-  for (const x of [-0.73, 0.73]) g.add(mesh(at(new THREE.BoxGeometry(0.05, 0.32, 0.95), x, 0.8, 0), m.wood));
-  for (const z of [-0.56, 0.56]) {
-    const wheel = mesh(at(new THREE.TorusGeometry(0.36, 0.045, 8, 24), -0.15, 0.38, z), m.woodDark); g.add(wheel);
-    for (let i = 0; i < 6; i++) g.add(mesh(at(new THREE.BoxGeometry(0.04, 0.68, 0.03), -0.15, 0.38, z, 0, 0, i * Math.PI / 6), m.woodDark));
-  }
-  for (const z of [-0.3, 0.3]) g.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), 1.25, 0.55, z, 0, 0, Math.PI / 2 - 0.25), m.wood));
-  g.add(mesh(at(new THREE.BoxGeometry(0.07, 0.62, 0.07), -0.65, 0.31, 0), m.woodDark));
-  // a few apples and a sheaf already in it
-  for (let i = 0; i < 5; i++) { const a = makeApple(false); a.position.set(-0.4 + i * 0.16, 0.8, -0.2 + (i % 2) * 0.18); a.scale.setScalar(0.8); g.add(a); }
-  const chalk = canvasTex(256, 128, (c, w, h) => { c.fillStyle = '#2f3a33'; c.fillRect(0, 0, w, h); c.strokeStyle = '#a77b52'; c.lineWidth = 12; c.strokeRect(6, 6, w - 12, h - 12); c.fillStyle = '#f4efe2'; c.font = 'bold 40px Georgia, serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Spare fruit', w / 2, h / 2 - 18); c.font = 'bold 30px Georgia, serif'; c.fillText('1 coin each', w / 2, h / 2 + 26); });
-  g.add(mesh(at(new THREE.PlaneGeometry(0.9, 0.45), 0, 1.2, 0.5, -0.15), new THREE.MeshStandardMaterial({ map: chalk, roughness: 0.9 }), false));
-  g.add(mesh(at(new THREE.BoxGeometry(0.04, 0.45, 0.04), 0, 0.95, 0.48), m.woodDark));
-  return g;
+  // The Design produce cart, for selling spare fruit and grain.
+  const g = new THREE.Group(); OB.cart(g, 0, 0, 0);
+  return bakeStatic(g);
 }
 function makeSignpost() {
-  const g = new THREE.Group(), m = mats();
-  g.add(mesh(at(new THREE.BoxGeometry(0.14, 2.2, 0.14), 0, 1.1, 0), m.woodDark));
-  const arrow = new THREE.Shape(); arrow.moveTo(-0.7, -0.2); arrow.lineTo(0.5, -0.2); arrow.lineTo(0.75, 0); arrow.lineTo(0.5, 0.2); arrow.lineTo(-0.7, 0.2); arrow.lineTo(-0.7, -0.2);
-  const ag = new THREE.ExtrudeGeometry(arrow, { depth: 0.05, bevelEnabled: false });
-  const sm = new THREE.MeshStandardMaterial({ map: signTex('Bakery', '#7a4a2e'), roughness: 0.7 });
-  ag.computeBoundingBox(); const uv = ag.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (ag.attributes.position.getX(i) + 0.7) / 1.45, (ag.attributes.position.getY(i) + 0.2) / 0.4);
-  g.add(mesh(at(ag, 0.25, 1.75, 0.06, 0, 0, 0), sm));
-  const fl = []; const r = rand(3);
-  for (let i = 0; i < 14; i++) fl.push(mesh(at(new THREE.SphereGeometry(0.06, 8, 6), (r() - 0.5) * 0.6, 0.06, (r() - 0.5) * 0.6), new THREE.MeshStandardMaterial({ color: [0xe58fb0, 0xf4d35e, 0xfff6e0][i % 3], roughness: 0.7 }), false));
-  fl.forEach((f) => g.add(f));
-  return g;
+  const g = new THREE.Group();
+  OB.rb(g, 0.16, 2.2, 0.16, '#9A6237', 0, 1.1, 0, 0.04);
+  OB.rb(g, 1.5, 0.42, 0.08, '#E3A462', 0.25, 1.75, 0.08, 0.05);
+  OB.flowers(g, 0, 0.2, 8);
+  const out = bakeStatic(g);
+  out.add(mesh(at(new THREE.PlaneGeometry(1.36, 0.36), 0.25, 1.75, 0.13), new THREE.MeshBasicMaterial({ map: signTex('Bakery', '#E3A462', '#2B1D14'), toneMapped: false }), false, false));
+  return out;
 }
 function makeBunting() {
   // Strings of little cloth flags across the road.
   const g = new THREE.Group(), m = mats();
-  for (const x of [-2.2, 2.2]) g.add(mesh(at(new THREE.CylinderGeometry(0.06, 0.07, 3.2, 8), x, 1.6, 0), m.woodDark));
-  const cols = [0xc8553d, 0xe9b44c, 0xfbf1df, 0x5f8a6a, 0xe58fb0];
+  for (const x of [-2.2, 2.2]) OB.rb(g, 0.16, 3.2, 0.16, '#9A6237', x, 1.6, 0, 0.04);
+  const cols = ['#E8392F', '#F7C23E', '#FFFFFF', '#45A535', '#FF7FA6', '#3C7FD6'];
   for (let row = 0; row < 2; row++) {
     const n = 14, y0 = 3.0 - row * 0.35;
     const pts = []; for (let i = 0; i <= 20; i++) { const t = i / 20; pts.push(new THREE.Vector3(-2.2 + 4.4 * t, y0 - Math.sin(t * Math.PI) * 0.4, 0)); }
-    g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.01, 4), m.white, false));
+    g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.015, 4), m.white, false));
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n, x = -2.2 + 4.4 * t, y = y0 - Math.sin(t * Math.PI) * 0.4;
-      const tri = new THREE.Shape(); tri.moveTo(-0.11, 0); tri.lineTo(0.11, 0); tri.lineTo(0, -0.26); tri.lineTo(-0.11, 0);
-      g.add(mesh(at(new THREE.ShapeGeometry(tri), x, y, 0), new THREE.MeshStandardMaterial({ color: cols[(i + row) % cols.length], roughness: 0.8, side: THREE.DoubleSide }), true, false));
+      OB.add(g, new THREE.ConeGeometry(0.13, 0.3, 3), OB.M(cols[(i + row) % cols.length]), x, y - 0.15, 0, { rx: Math.PI, s: [1, 1, 0.25] });
     }
   }
-  return g;
+  return bakeStatic(g);
 }
-
 // ---------- build everything ----------
 export function buildWorld(scene) {
   makeSky(scene); makeGround(scene); makeForest(scene); const dividers = makeFence(scene);
@@ -768,14 +559,12 @@ export function buildWorld(scene) {
   decor(makeLamp(), -1.6, 3.2, 0, 0.12); decor(makeLamp(), 1.6, -3.4, Math.PI, 0.12); decor(makeLamp(), -1.6, 13, 0, 0.12);
   decor(makeBench(), -3.6, 8.9, Math.PI / 2, 0); // bench by the path
   decor(makeBarrel(), 6.6, -9.6, 0, 0.35); decor(makeCrate(), -6.6, -9.4, 0.4, 0.4); decor(makeCrate(), -6.9, -8.7, 1.2, 0.4);
-  const well = new THREE.Group();
-  well.add(mesh(at(new THREE.CylinderGeometry(0.7, 0.75, 0.75, 24, 1, true), 0, 0.37, 0), mats().stone));
-  well.add(mesh(at(new THREE.TorusGeometry(0.72, 0.09, 8, 24), 0, 0.75, 0, Math.PI / 2), mats().stone));
-  well.add(mesh(at(new THREE.CircleGeometry(0.66, 24), 0, 0.5, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3e6a7a, roughness: 0.1, metalness: 0.2 })));
-  for (const s of [-1, 1]) well.add(mesh(at(new THREE.BoxGeometry(0.1, 1.5, 0.1), s * 0.68, 1.2, 0), mats().woodDark));
-  well.add(mesh(at(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 8), 0, 1.75, 0, 0, 0, Math.PI / 2), mats().wood));
-  const wr = shingleRoof(1.4, 1.2, 0.5); wr.position.y = 1.95; wr.scale.set(1, 1, 1); well.add(wr);
-  decor(well, -12.5, -9.5, 0.3, 0.85);
+  const wg = new THREE.Group();
+  OB.cyl(wg, 0.75, 0.8, 0.75, '#C9C3B3', 0, 0.37, 0, 16); OB.cyl(wg, 0.62, 0.62, 0.05, '#5CC3E8', 0, 0.62, 0, 16);
+  for (const sd of [-1, 1]) OB.rb(wg, 0.14, 1.6, 0.14, '#9A6237', sd * 0.68, 1.2, 0, 0.04);
+  OB.cyl(wg, 0.08, 0.08, 1.5, '#C9884C', 0, 1.75, 0, 8, { rz: Math.PI / 2 });
+  OB.rb(wg, 1.0, 0.12, 1.5, '#E0402F', -0.4, 2.15, 0, 0.04, { rz: 0.6 }); OB.rb(wg, 1.0, 0.12, 1.5, '#C2321F', 0.4, 2.15, 0, 0.04, { rz: -0.6 });
+  decor(bakeStatic(wg), -12.5, -9.5, 0.3, 0.85);
 
   // orchard trees (all built now; extra groups appear when unlocked)
   const trees = []; const treeGroups = {};

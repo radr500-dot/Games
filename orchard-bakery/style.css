@@ -15,7 +15,7 @@ body {
 }
 button { font: inherit; color: inherit; touch-action: manipulation; cursor: pointer; }
 [hidden] { display: none !important; }
-#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; filter: saturate(1.3) contrast(1.06); }
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
 #lens { display: none; }
 
 /* start screen */

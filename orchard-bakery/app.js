@@ -12,11 +12,19 @@ const SAVE_KEY = 'orchard-bakery-save-v1';
 
 // ---------- renderer ----------
 const canvas = $('scene');
+// Lite mode (lighter shadows and resolution) kicks in by itself if the graphics card ever gives up.
+const LITE = /[?&]lite/.test(location.search) || (() => { try { return localStorage.getItem('orchard-bakery-lite') === '1'; } catch (e) { return false; } })();
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  try { localStorage.setItem('orchard-bakery-lite', '1'); } catch (err) { /* ignore */ }
+  try { save(); } catch (err) { /* ignore */ }
+  setTimeout(() => location.reload(), 300);
+});
 // Draw at the screen's full sharpness (up to 3x on iPhone); only step down a little if a device really struggles.
 const DPR = window.devicePixelRatio || 1;
-let pixelRatio = Math.min(DPR, 3);
-const MIN_RATIO = Math.min(DPR, 1.75);
+let pixelRatio = Math.min(DPR, LITE ? 1.5 : 3);
+const MIN_RATIO = Math.min(DPR, LITE ? 1 : 1.75);
 renderer.setPixelRatio(pixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -24,6 +32,11 @@ renderer.toneMappingExposure = 0.86; // bright and sunny, like a toy farm
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+// a little extra colour after tone mapping, for the bright toy look (labels skip this, they aren't tone mapped)
+THREE.ShaderChunk.tonemapping_fragment = `#if defined( TONE_MAPPING )
+  gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
+  { float lum = dot( gl_FragColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ); gl_FragColor.rgb = max( mix( vec3( lum ), gl_FragColor.rgb, 1.3 ), 0.0 ); }
+#endif`;
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xe9e7d6, 45, 120);
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -34,7 +47,7 @@ scene.environment = envTex;
 const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x7fa456, 1.0); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2da, 2.7);
 sun.position.set(-12, 22, 10); sun.castShadow = true;
-const BIG = !matchMedia("(pointer: coarse)").matches && !/[?&]lite/.test(location.search);
+const BIG = !LITE && !matchMedia("(pointer: coarse)").matches && renderer.capabilities.maxTextureSize >= 8192;
 sun.shadow.mapSize.set(BIG ? 4096 : 2048, BIG ? 4096 : 2048);
 Object.assign(sun.shadow.camera, { left: -21, right: 21, top: 19, bottom: -19, near: 1, far: 70 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 5;
@@ -1306,6 +1319,7 @@ renderIcons().then((imgs) => {
   $('coinIcon').src = ICON.coin; $('carryIcon').src = ICON.tray;
   setupZones(); restore(); setSoundBtn(); setPlayLabel();
   $('loading').hidden = true; $('playBtn').disabled = false;
+  window.__obReady = true;
   if (new URLSearchParams(location.search).has('play')) $('playBtn').click();
   requestAnimationFrame((n) => { last = n; frame(n); });
 });

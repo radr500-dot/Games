@@ -91,6 +91,7 @@ const bakeTime = () => Math.max(0.12, 1.0 * (S.unlocked.oven1 ? 0.7 : 1) * (S.un
 const growRate = () => Math.pow(1.14, lv('lvGrow'));
 const farmRate = () => Math.pow(1.15, lv('lvFarm'));
 const beeRate = () => Math.pow(1.15, lv('lvHill'));
+const walkRate = () => 1 + 0.07 * lv('lvSpeed'); // Comfy boots: 7% quicker each level, up to 12 levels
 const handRate = () => Math.min(2.2, Math.pow(1.08, lv('lvHands')));
 
 // ---------- sound (soft, optional) ----------
@@ -436,15 +437,17 @@ function addZone(name, pos, icon, label, parent = scene) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: zoneTex(icon, label), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
   m.rotation.x = -Math.PI / 2; m.position.set(pos.x, 0.05, pos.z); m.renderOrder = 2; m.receiveShadow = true; parent.add(m);
   zones[name] = { pos: new V3(pos.x, 0, pos.z), mesh: m, r: 0.95 };
-  if (name !== 'stallIn' && name !== 'cash') {
+  if (name !== 'stallIn' && name !== 'cash' && name !== 'order') { // the order board shows its own name
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex(icon, label), transparent: true, depthWrite: false, opacity: 0, toneMapped: false, fog: false }));
     sp.scale.set(2.6, 0.79, 1); sp.position.set(pos.x, 2.6, pos.z - 0.2); sp.renderOrder = 5; parent.add(sp); signs.push(sp);
   }
 }
 
 // ---------- customers ----------
-const QUEUE = (i) => new V3(0, 0, 6.75 + i * 1.05);
-const customers = [], queue = [];
+// one line in front of the stall, or two side by side once the second line is built
+const QUEUE = (i, line = 0) => new V3(S.unlocked.line2 ? (line ? 0.8 : -0.8) : 0, 0, 6.75 + i * 1.05);
+const customers = [], queues = [[], []];
+const queued = () => queues[0].length + queues[1].length;
 const POOL = [];
 for (let i = 0; i < 16; i++) {
   const p = makePerson({ seed: 100 + i * 17 }); p.visible = false; scene.add(p);
@@ -470,7 +473,8 @@ function spawnCustomer() {
   const c = { ...slot, slot, pos: slot.person.position, path: [], state: 'in', speed: 2.1 + Math.random() * 0.5, t: 0, want: null, buys: 1 + (Math.random() < 0.45 ? 1 : 0) + (Math.random() < 0.15 ? 1 : 0) + Math.floor(lv('lvCrowd') / 4), seat: null, face: Math.PI, spd: 0 };
   c.person.visible = true; c.pos.set((Math.random() - 0.5) * 1.2, 0, 26);
   c.path = [new V3(c.pos.x * 0.4, 0, 16.5)];
-  queue.push(c); customers.push(c);
+  c.line = S.unlocked.line2 && queues[1].length < queues[0].length ? 1 : 0;
+  queues[c.line].push(c); customers.push(c);
 }
 function moveTo(c, dt) {
   const tgt = c.path[0]; if (!tgt) { c.spd = 0; return true; }
@@ -489,16 +493,16 @@ function updateCustomers(dt) {
   const tea = !!S.unlocked.tea, flowers = !!S.unlocked.flowers;
   const interval = Math.max(0.5, 3.0 * (tea ? 0.75 : 1) * (flowers ? 0.85 : 1) * (S.unlocked.sign1 ? 0.8 : 1) * (S.unlocked.sign2 ? 0.8 : 1) * (S.unlocked.eastLand ? 0.9 : 1) * (S.unlocked.westLand ? 0.9 : 1) * Math.pow(0.9, lv('lvCrowd')));
   spawnTimer -= dt;
-  if (spawnTimer <= 0 && queue.length < 8) { spawnCustomer(); spawnTimer = interval * (0.8 + Math.random() * 0.4); }
+  if (spawnTimer <= 0 && queued() < (S.unlocked.line2 ? 14 : 8)) { spawnCustomer(); spawnTimer = interval * (0.8 + Math.random() * 0.4); }
   for (let i = customers.length - 1; i >= 0; i--) {
     const c = customers[i]; c.t += dt;
-    const qi = queue.indexOf(c);
+    const q = queues[c.line || 0], qi = q.indexOf(c);
     if (c.state === 'in' || c.state === 'queue') {
-      const target = QUEUE(Math.max(0, qi));
+      const target = QUEUE(Math.max(0, qi), c.line);
       if (c.state === 'in' && c.path.length === 0) c.state = 'queue';
       if (c.state === 'queue') { if (c.pos.distanceTo(target) > 0.06) c.path = [target]; }
       moveTo(c, dt);
-      const atFront = qi === 0 && c.state === 'queue' && c.pos.distanceTo(QUEUE(0)) < 0.1;
+      const atFront = qi === 0 && c.state === 'queue' && c.pos.distanceTo(QUEUE(0, c.line)) < 0.1;
       if (atFront) {
         c.face = Math.PI;
         if (!c.want) {
@@ -521,7 +525,7 @@ function updateCustomers(dt) {
           for (let k = 0; k < 3; k++) after(k * 0.07, () => { const coin = makeCoin(); fly(coin, c.pos.clone().add(new V3(0, 1.3, 0)), null, A.cash.clone().add(new V3(0, 0.1, 0)), 0.38, () => { S.cash += k === 2 ? pr - 2 : 1; syncCash(); sfx.coin(); }, 0.7); });
           c.buys--; c.waitBuy = 0.3; if (c.buys > 0) { c.want = null; }
           if (c.buys <= 0) {
-            c.bub.visible = false; queue.splice(qi, 1);
+            c.bub.visible = false; q.splice(qi, 1);
             const seat = tea && Math.random() < 0.65 ? world.tea.seats.find((s) => !s.busy) : null;
             if (seat) { seat.busy = c; c.seat = seat; c.state = 'toSeat'; c.path = [new V3(1.4, 0, 7.2), new V3(seat.x < 8 ? 4.6 : 11.2, 0, seat.z), new V3(seat.x, 0, seat.z)]; }
             else { c.state = 'out'; c.path = [new V3(1.5, 0, 7.4), new V3(1.5, 0, 14.0), new V3(0.4, 0, 16.5), new V3(0.4, 0, 27)]; }
@@ -566,7 +570,7 @@ const ROUTES = {
 };
 function addWorker(kind, look = kind) {
   const p = makePerson(WORKER_LOOK[look]);
-  const start = { orchard: [-6, 0], shop: [-1.5, -3], field: [6.2, 1], haulE: [23.5, -1], haulW: [-24, -1] }[kind];
+  const start = { orchard: [-6, 0], shop: [-1.5, -3], field: [6.2, 1], haulE: [25.0, -1], haulW: [-26.2, -1] }[kind];
   p.position.set(start[0], 0, start[1]); scene.add(p);
   const w = makeActor(p, 6, 2.8); w.kind = kind; w.state = 'idle'; w.target = null; w.wait = 0; w.home = new V3(start[0], 0, start[1]);
   if (kind === 'orchard') w.fruitOnly = 'apple';
@@ -581,7 +585,7 @@ function stepToward(a, target, dt) {
   // simple steering: if a wall or oven is in the way, walk along it until the way is clear
   if (a.detour > 0) { a.detour -= dt; d.applyAxisAngle(new V3(0, 1, 0), a.side * 1.25); }
   else if (a.stuck > 0.35) { a.detour = 0.9; a.stuck = 0; a.side = a.side ? -a.side * (Math.random() < 0.7 ? -1 : 1) : 1; }
-  const want = d.multiplyScalar(a.speed * (a === player ? 1 : handRate()));
+  const want = d.multiplyScalar(a.speed * (a === player ? walkRate() : handRate()));
   a.vel.lerp(want, 1 - Math.exp(-8 * dt));
   return false;
 }
@@ -794,10 +798,12 @@ function interact(a, dt, allowed, helper = false) {
   }
   // collect coins
   if (near(a, 'cash') && S.cash > 0) {
-    const chunk = Math.max(1, Math.ceil(S.cash / 12));
-    S.cash -= chunk; S.coins += chunk; S.stats.earned += chunk; syncCash();
-    const coin = makeCoin(); fly(coin, A.cash.clone().add(new V3(0, 0.2, 0)), player.obj, new V3(0, 1.3, 0), 0.25, () => { player.obj.remove(coin); }, 0.5);
-    sfx.coin(); a.cool = 0.06; return;
+    // scoop up every coin at once as soon as you step on the spot
+    const all = S.cash;
+    S.cash = 0; S.coins += all; S.stats.earned += all; syncCash();
+    for (let k = 0; k < Math.min(8, all); k++) after(k * 0.04, () => { const coin = makeCoin(); fly(coin, A.cash.clone().add(new V3((Math.random() - 0.5) * 0.3, 0.2, (Math.random() - 0.5) * 0.3)), player.obj, new V3(0, 1.3, 0), 0.22, () => { player.obj.remove(coin); }, 0.5); });
+    floatNum(player.obj.position.clone().add(new V3(0, 2.6, 0)), all);
+    sfx.coin(); a.cool = 0.3; return;
   }
   // pay into build pads
   for (const id of Object.keys(pads)) {
@@ -840,7 +846,7 @@ function applyUnlock(id, animate) {
   if (id === 'jam') show(world.jamGroup, new V3(-6, 0, -4), 0);
   if (id === 'sign1') show(world.signpost, world.signpost.position.clone(), 0);
   if (id === 'sign2') show(world.bunting, world.bunting.position.clone(), 0);
-  const farmShow = { eastLand: [22, 0, 0], hens: [19.8, 0, -10], pastry: [19.8, 0, -4.6], dairy: [27.2, 0, -9], churn: [27.2, 0, -4.6], berries: [-24.8, 0, 6], tarts: [-20.5, 0, -4.6], cheese: [19.8, 0, 4.0], cider: [-18.9, 0, 3.7], bees: [-27.4, 0, -10.5], honey: [-27.4, 0, -4.6], wagon: [10.5, 0, -7.4] };
+  const farmShow = { eastLand: [22, 0, 0], hens: [19.8, 0, -10], pastry: [19.8, 0, -4.6], dairy: [30.2, 0, -9], churn: [30.2, 0, -4.6], berries: [-27.8, 0, 6], tarts: [-22.0, 0, -4.6], cheese: [19.8, 0, 4.0], cider: [-18.9, 0, 3.7], bees: [-30.4, 0, -10.5], honey: [-30.4, 0, -4.6], wagon: [10.5, 0, -7.4] };
   if (farmShow[id]) show(FG[id], new V3(...farmShow[id]), 0);
   if (id === 'pastry' || id === 'churn') FG.shopE.visible = true;
   if (id === 'tarts' || id === 'honey') FG.shopW.visible = true;
@@ -907,17 +913,18 @@ function finishOrder() {
   drawOrder(); after(5, newOrder);
 }
 function drawOrder() {
-  const { ctx: c, tex } = world.farm.wagon, W = 512, H = 256;
-  c.fillStyle = '#2f3a33'; c.fillRect(0, 0, W, H);
-  c.strokeStyle = '#a77b52'; c.lineWidth = 16; c.strokeRect(8, 8, W - 16, H - 16);
-  c.fillStyle = '#f4efe2'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  if (!S.order) { c.font = 'bold 44px Georgia, serif'; c.fillText('Next order soon…', W / 2, H / 2); tex.needsUpdate = true; return; }
-  c.font = 'bold 40px Georgia, serif'; c.fillText(`Order: ${S.order.reward} coins`, W / 2, 50);
-  const ks = Object.keys(S.order.items), cw = (W - 40) / ks.length;
+  // cream Design board: the reward on top, then each item with a big picture and its count
+  const { ctx: c, tex } = world.farm.wagon, W = 640, H = 352;
+  c.fillStyle = '#8B4E2A'; c.fillRect(0, 0, W, H);
+  roundRect(c, 14, 14, W - 28, H - 28, 30); c.fillStyle = '#FFF8EC'; c.fill(); c.lineWidth = 8; c.strokeStyle = '#3B2A1E'; c.stroke();
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#2B1D14';
+  if (!S.order) { c.font = UI_FONT(700, 56); c.fillText('Next order soon…', W / 2, H / 2); tex.needsUpdate = true; return; }
+  c.font = UI_FONT(700, 50); c.fillText(`Order · ${S.order.reward} coins`, W / 2, 68, W - 80);
+  const ks = Object.keys(S.order.items), cw = (W - 60) / ks.length, isz = Math.min(130, cw - 20);
   ks.forEach((k, i) => {
-    const x = 20 + cw * i + cw / 2, got = S.order.got[k] || 0, need = S.order.items[k];
-    if (IMG[k]) c.drawImage(IMG[k], x - 48, 86, 96, 96);
-    c.fillStyle = got >= need ? '#a9d98a' : '#f4efe2'; c.font = 'bold 38px ui-rounded, -apple-system, sans-serif'; c.fillText(`${got}/${need}`, x, 212);
+    const x = 30 + cw * i + cw / 2, got = S.order.got[k] || 0, need = S.order.items[k], done = got >= need;
+    if (IMG[k]) c.drawImage(IMG[k], x - isz / 2, 112, isz, isz);
+    c.fillStyle = done ? '#3D9A2E' : '#2B1D14'; c.font = UI_FONT(700, 56); c.fillText(done ? `✓ ${need}` : `${got}/${need}`, x, 290);
   });
   tex.needsUpdate = true;
 }
@@ -1151,7 +1158,7 @@ const ovenTimers = {}, prodTimers = {};
 let smokeT = 0;
 const STATION = { pie: world.pieOven, bread: world.breadOven, jam: world.jamKitchen, ...world.farm.stations };
 const OVENS = ['pie', 'bread', 'custard', 'tart'];
-const PRODUCE_AT = { eggs: new V3(19.8, 1.0, -10.6), milk: new V3(27.2, 1.4, -9.4), comb: new V3(-27.4, 1.2, -11.6) };
+const PRODUCE_AT = { eggs: new V3(19.8, 1.0, -10.6), milk: new V3(30.2, 1.4, -9.4), comb: new V3(-30.4, 1.2, -11.6) };
 function updateWorld(dt, t) {
   for (const kind of Object.keys(PRODUCTS)) {
     if (!live(kind)) continue;
@@ -1241,7 +1248,7 @@ let playing = false, last = performance.now(), frames = 0, slow = 0, keyHintDone
 function update(dt, t) {
   if (playing) {
     const [ix, iy] = inputVec();
-    const want = new V3(ix, 0, iy).multiplyScalar(player.speed);
+    const want = new V3(ix, 0, iy).multiplyScalar(player.speed * walkRate());
     const accel = (ix || iy) ? 10 : 12;
     player.vel.lerp(want, 1 - Math.exp(-accel * dt));
     moveActor(player, dt);

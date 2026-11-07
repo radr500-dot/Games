@@ -45,6 +45,8 @@ Play at https://radr500-dot.github.io/Games/orchard-bakery/
 
 - Light mode only (Rachel asked for no dark mode in this game).
 - Everything is drawn in code with [three.js](https://threejs.org) (in `vendor/`, MIT licence); no downloaded art.
+- The look comes from Rachel's own Design art pack: `art.js` holds its toy-style models, lighting, camera and colours, and the menus follow its screens. Fonts are Fredoka and Nunito (Google Fonts, Open Font Licence) in `fonts/`.
+- To keep phones smooth, still scenery is merged into a few vertex-coloured meshes (`bakeStatic` in `models.js`) and grass, wheat and forest trees are instanced.
 - `models.js` builds the items and people, `world.js` lays out the farm, `farm.js` builds the east and west land
   (animals, new produce, the order wagon), `app.js` runs the game, levels, orders and tasks.
 - If a phone struggles, the game lowers its resolution a little so movement stays smooth.

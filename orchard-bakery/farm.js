@@ -215,8 +215,53 @@ export function makeHoney() {
   grp.userData.kind = 'honey';
   return grp;
 }
+export function makeCheese() {
+  // a small farmhouse cheese wheel with a waxed rind and one wedge cut out, so you can see the pale inside
+  if (!GEO.cheese) {
+    const R = 0.11, H = 0.08, cut = 0.9;
+    const rind = new THREE.CylinderGeometry(R, R * 1.02, H, 32, 2, true, cut, Math.PI * 2 - cut);
+    displace(rind, (v) => { const k = 1 - Math.pow(Math.abs(v.y) / (H / 2), 6) * 0.06; v.x *= k; v.z *= k; });
+    rind.translate(0, H / 2, 0); GEO.cheeseRind = rind;
+    const top = new THREE.CircleGeometry(R * 0.97, 32, cut, Math.PI * 2 - cut); top.rotateX(-Math.PI / 2); top.translate(0, H, 0);
+    const bot = top.clone(); bot.translate(0, -H, 0);
+    const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(R * 0.97, 0); shape.lineTo(R * 0.97, H); shape.lineTo(0, H); shape.lineTo(0, 0);
+    const f1 = new THREE.ShapeGeometry(shape); f1.rotateY(-cut); const f2 = new THREE.ShapeGeometry(shape); f2.rotateY(Math.PI);
+    GEO.cheeseFace = merge([top, bot]); GEO.cheeseCut = merge([f1, f2]);
+    paint(GEO.cheeseCut, (x, y, z, c) => c.copy(C(0xf7dc8a)).lerp(C(0xf0c860), clamp01(0.5 + fbm(x * 60, y * 60, z * 60))));
+  }
+  if (!MAT.cheeseRind) {
+    MAT.cheeseRind = new THREE.MeshPhysicalMaterial({ color: 0xb8342a, roughness: 0.35, clearcoat: 0.6 });
+    MAT.cheeseTop = new THREE.MeshPhysicalMaterial({ map: labelTex('Farmhouse', '#b8342a', '#fbe9c4'), roughness: 0.35, clearcoat: 0.6 });
+    MAT.cheeseCut = std({ vertexColors: true, roughness: 0.7, side: THREE.DoubleSide, bumpMap: canvasTex(128, 128, (c, w, h) => { c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); const r = rand(3); for (let i = 0; i < 26; i++) { c.fillStyle = '#555'; c.beginPath(); c.arc(r() * w, r() * h, 2 + r() * 5, 0, 7); c.fill(); } }), bumpScale: 0.6 });
+  }
+  const grp = new THREE.Group();
+  grp.add(mesh(GEO.cheeseRind, MAT.cheeseRind), mesh(GEO.cheeseFace, MAT.cheeseTop), mesh(GEO.cheeseCut, MAT.cheeseCut));
+  grp.userData.kind = 'cheese';
+  return grp;
+}
+export function makeCider() {
+  // a swing-top bottle of cloudy amber apple cider
+  if (!GEO.cbottle) {
+    const prof = [[0, 0], [0.045, 0], [0.05, 0.008], [0.05, 0.15], [0.045, 0.19], [0.022, 0.235], [0.019, 0.275], [0.022, 0.282], [0.02, 0.29]].map(([r, y]) => new THREE.Vector2(r, y));
+    GEO.cbottle = new THREE.LatheGeometry(prof, 24);
+    const fill = [[0, 0.005], [0.046, 0.005], [0.046, 0.15], [0.041, 0.19], [0.019, 0.232], [0.016, 0.25], [0, 0.25]].map(([r, y]) => new THREE.Vector2(r, y));
+    GEO.cfill = new THREE.LatheGeometry(fill, 24);
+    GEO.ccap = merge([at(new THREE.CylinderGeometry(0.02, 0.022, 0.022, 14), 0, 0.3, 0), at(new THREE.TorusGeometry(0.024, 0.003, 4, 14), 0, 0.272, 0, Math.PI / 2)]);
+    GEO.clabel = new THREE.CylinderGeometry(0.0505, 0.0505, 0.075, 24, 1, true, -1.1, 2.2); GEO.clabel.translate(0, 0.085, 0);
+  }
+  if (!MAT.cider) {
+    MAT.cider = new THREE.MeshPhysicalMaterial({ color: 0xd9902a, roughness: 0.15, clearcoat: 1, emissive: 0x3a1c00, emissiveIntensity: 0.3 });
+    MAT.cglass = new THREE.MeshPhysicalMaterial({ color: 0xc8e0c0, roughness: 0.05, transparent: true, opacity: 0.32, clearcoat: 1, depthWrite: false });
+    MAT.ccap = std({ color: 0xf2efe6, roughness: 0.4 });
+    MAT.clabel = std({ map: labelTex('Cider', '#3f6b4f', '#f3e6d0'), roughness: 0.7 });
+  }
+  const grp = new THREE.Group();
+  grp.add(mesh(GEO.cfill, MAT.cider), mesh(GEO.cbottle, MAT.cglass, false, false), mesh(GEO.ccap, MAT.ccap), mesh(GEO.clabel, MAT.clabel, false));
+  grp.userData.kind = 'cider';
+  return grp;
+}
 export function makeFarmItem(kind) {
-  return ({ berry: makeBerry, egg: makeEgg, milk: makeMilk, comb: makeComb, custard: makeCustard, butter: makeButter, tart: makeTart, honey: makeHoney })[kind]?.();
+  return ({ berry: makeBerry, egg: makeEgg, milk: makeMilk, comb: makeComb, custard: makeCustard, butter: makeButter, tart: makeTart, honey: makeHoney, cheese: makeCheese, cider: makeCider })[kind]?.();
 }
 
 // ---------- animals ----------
@@ -448,6 +493,38 @@ function makeHoneyHouse(H) {
   g.userData = { crank, smokeAt: null };
   return g;
 }
+function makeCheeseRoom(H) {
+  const g = makeShelter(H, 0x6f7f5a, 'Cheese', '#8a3a2a'), m = mats();
+  // a cheese press and a shelf of wheels ripening
+  g.add(mesh(at(new THREE.BoxGeometry(0.5, 0.06, 0.5), -0.5, 0.87, -0.4), m.woodDark));
+  g.add(mesh(at(new THREE.CylinderGeometry(0.2, 0.2, 0.22, 20), -0.5, 1.0, -0.4), m.wood));
+  for (const x of [-0.72, -0.28]) g.add(mesh(at(new THREE.BoxGeometry(0.05, 0.9, 0.05), x, 1.3, -0.4), m.woodDark));
+  g.add(mesh(at(new THREE.BoxGeometry(0.55, 0.06, 0.1), -0.5, 1.74, -0.4), m.woodDark));
+  const screw = new THREE.Group(); screw.position.set(-0.5, 1.45, -0.4); g.add(screw);
+  screw.add(mesh(at(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8), 0, 0, 0), m.iron), mesh(at(new THREE.BoxGeometry(0.34, 0.025, 0.025), 0, 0.25, 0), m.iron));
+  g.add(mesh(at(new THREE.BoxGeometry(1.0, 0.04, 0.34), 0.5, 1.45, -0.75), m.wood));
+  for (let i = 0; i < 4; i++) { const c = makeCheese(); c.position.set(0.18 + i * 0.22, 1.47, -0.75); c.rotation.y = i * 1.3; g.add(c); }
+  for (let i = 0; i < 3; i++) { const c = makeCheese(); c.position.set(0.3 + i * 0.24, 0.84, -0.45); c.rotation.y = i * 2.1; g.add(c); }
+  g.userData = { crank: screw, smokeAt: null };
+  return g;
+}
+function makeCiderPress(H) {
+  const g = makeShelter(H, 0x9a4a32, 'Cider', '#3f6b4f'), m = mats();
+  // a slatted basket press with a big screw and a tub under the spout
+  const slats = []; for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; slats.push(at(new THREE.BoxGeometry(0.06, 0.5, 0.03), -0.5 + Math.cos(a) * 0.26, 1.12, -0.4 + Math.sin(a) * 0.26, 0, -a, 0)); }
+  g.add(mesh(merge(slats), m.wood));
+  for (const y of [0.92, 1.32]) g.add(mesh(at(new THREE.TorusGeometry(0.28, 0.014, 6, 24), -0.5, y, -0.4, Math.PI / 2), m.iron, false));
+  g.add(mesh(at(new THREE.CylinderGeometry(0.24, 0.24, 0.04, 20), -0.5, 1.3, -0.4), farmMats().metal));
+  const screw = new THREE.Group(); screw.position.set(-0.5, 1.7, -0.4); g.add(screw);
+  screw.add(mesh(at(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 8), 0, 0, 0), m.iron), mesh(at(new THREE.BoxGeometry(0.6, 0.035, 0.035), 0, 0.3, 0), m.wood));
+  for (const x of [-0.85, -0.15]) g.add(mesh(at(new THREE.BoxGeometry(0.07, 1.4, 0.07), x, 1.1, -0.4), m.woodDark));
+  g.add(mesh(at(new THREE.BoxGeometry(0.85, 0.08, 0.1), -0.5, 1.85, -0.4), m.woodDark));
+  // crate of apples and bottles waiting
+  const cr = makeCrate(0.55, 0.3, 0.4); cr.position.set(0.55, 0.84, -0.45); g.add(cr);
+  for (let i = 0; i < 4; i++) { const b = makeCider(); b.position.set(0.32 + i * 0.15, 1.14, -0.45); g.add(b); }
+  g.userData = { crank: screw, smokeAt: null };
+  return g;
+}
 function makeHive(color) {
   const g = new THREE.Group(), m = mats();
   const paintMat = std({ color, roughness: 0.75 });
@@ -519,12 +596,17 @@ export const FARM_SPOTS = {
   milk: new V3(27.2, 0, -7.6), butterIn: new V3(25.9, 0, -2.1), butterOut: new V3(28.5, 0, -2.1),
   tartIn: new V3(-21.7, 0, -2.1), tartOut: new V3(-19.3, 0, -2.1),
   comb: new V3(-27.4, 0, -7.6), honeyIn: new V3(-28.7, 0, -2.1), honeyOut: new V3(-26.1, 0, -2.1),
-  order: new V3(10.5, 0, -5.3)
+  order: new V3(10.5, 0, -5.3),
+  // a short lane leads round to the front of each, so the building never hides the spots
+  cheeseIn: new V3(18.5, 0, 6.5), cheeseOut: new V3(21.1, 0, 6.5),
+  ciderIn: new V3(-17.6, 0, 6.2), ciderOut: new V3(-20.2, 0, 6.2)
 };
 export const FARM_PATHS = [
   [13.6, 1.2, 30, 1.2, 1.6], [23.5, 1.2, 23.5, -9.4, 1.4],
   [-6, 1.2, -14, 0.2, 1.6], [-14, 0.2, -30, 0.2, 1.6], [-24, 0.2, -24, -9.4, 1.4],
-  [5.2, -3.0, 10.5, -4.3, 1.4]
+  [5.2, -3.0, 10.5, -4.3, 1.4],
+  [17.1, 1.2, 17.1, 7.6, 1.3], [17.1, 7.6, 22.4, 7.6, 1.3], // lane to the cheese room
+  [-16.9, 0.2, -16.9, 7.3, 1.3], [-16.9, 7.3, -20.4, 7.3, 1.3] // lane to the cider press
 ];
 const BUSHES = []; for (const z of [2.6, 5.0, 7.4, 9.8]) for (const x of [-28.6, -26.2, -23.8, -21.4]) BUSHES.push([x, z]);
 const HIVES = [[-29.6, -11.8, 0xf6f2ea], [-28.1, -12.1, 0xcfe3cf], [-26.6, -11.8, 0xf2d98a], [-25.1, -12.1, 0xc9dbe8]];
@@ -541,10 +623,10 @@ export function buildFarm(scene, colliders, H) {
 
   // ----- east meadow: hens, custard oven, dairy and butter -----
   const east = grp('eastLand');
-  const pond = makePond(H); pond.group.position.set(20.4, 0, 8.6); east.add(pond.group);
-  colliders.push({ x: 20.4, z: 8.6, r: 2.0, need: 'eastLand' });
+  const pond = makePond(H); pond.group.position.set(20.0, 0, 11.6); east.add(pond.group);
+  colliders.push({ x: 20.0, z: 11.6, r: 2.0, need: 'eastLand' });
   const hens = grp('hens');
-  const hh = makeHenHouse(H); hh.position.set(19.8, 0, -11.4); hens.add(hh);
+  const hh = makeHenHouse(H); hh.position.set(19.8, 0, -11.4); hens.add(hh); { const ao = H.aoBlob(1.7, 1.4, 0.45); ao.position.copy(hh.position); hens.add(ao); }
   const run = makeRailFence(...HEN_RUN); run.scale.y = 0.75; hens.add(run);
   box(HEN_RUN[0] - 0.1, HEN_RUN[1] - 0.1, HEN_RUN[2] + 0.1, HEN_RUN[3] + 0.1, 'hens');
   const nest = makeNestCrate(); nest.position.copy(S.eggs).add(new V3(0, 0, -0.95)); hens.add(nest);
@@ -557,7 +639,7 @@ export function buildFarm(scene, colliders, H) {
   anchors.custardIn = basketAt(pastry, S.custardIn); anchors.custardOut = tableAt(pastry, S.custardOut);
 
   const dairy = grp('dairy');
-  const barn = makeBarn(H); barn.position.set(27.2, 0, -11.2); dairy.add(barn); box(24.8, -12.9, 29.6, -9.5, 'dairy');
+  const barn = makeBarn(H); barn.position.set(27.2, 0, -11.2); dairy.add(barn); { const ao = H.aoBlob(3.0, 2.2, 0.5); ao.position.copy(barn.position); dairy.add(ao); } box(24.8, -12.9, 29.6, -9.5, 'dairy');
   const stand = makeMilkStand(); stand.position.copy(S.milk).add(new V3(0, 0, -0.95)); dairy.add(stand);
   box(S.milk.x - 1.2, S.milk.z - 1.35, S.milk.x + 1.2, S.milk.z - 0.55, 'dairy');
   anchors.milk = stand.position.clone().add(new V3(0, 0.75, 0));
@@ -568,7 +650,7 @@ export function buildFarm(scene, colliders, H) {
   for (let i = 0; i < 3; i++) { const c = makeCow(i * 11 + 5); c.position.set(26 + i * 1.6, 0, 5.5 + i * 2.4); c.rotation.y = i * 2; dairy.add(c); cows.push(c); }
 
   const churn = grp('churn');
-  const ch = makeChurnHouse(H); ch.position.set(27.2, 0, -4.6); churn.add(ch); box(25.75, -5.65, 28.65, -3.6, 'churn');
+  const ch = makeChurnHouse(H); ch.position.set(27.2, 0, -4.6); churn.add(ch); { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(ch.position); churn.add(ao); } box(25.75, -5.65, 28.65, -3.6, 'churn');
   anchors.butterIn = basketAt(churn, S.butterIn); anchors.butterOut = tableAt(churn, S.butterOut);
 
   // ----- west hill: strawberries and bees -----
@@ -582,7 +664,7 @@ export function buildFarm(scene, colliders, H) {
     colliders.push({ x, z, r: 0.42, group: 'berries' });
   });
   const sign = mesh(at(new THREE.PlaneGeometry(1.2, 0.4), 0, 1.2, 0), std({ map: labelTex('Strawberries', '#fbf1df', '#c8553d'), roughness: 0.6 }), false);
-  const post = new THREE.Group(); post.add(sign, mesh(at(new THREE.BoxGeometry(0.08, 1.2, 0.08), 0, 0.6, -0.03), mats().woodDark)); post.position.set(-19.6, 0, 1.6); berries.add(post);
+  const post = new THREE.Group(); post.add(sign, mesh(at(new THREE.BoxGeometry(0.08, 1.2, 0.08), 0, 0.6, -0.03), mats().woodDark)); post.position.set(-17.2, 0, -1.3); berries.add(post);
 
   const tarts = grp('tarts');
   const tOven = H.makeOven('pie'); tOven.position.set(-20.5, 0, -4.6); tarts.add(tOven); box(-21.9, -5.9, -19.1, -3.3, 'tarts');
@@ -611,23 +693,35 @@ export function buildFarm(scene, colliders, H) {
   const beeData = Array.from({ length: 36 }, (_, i) => ({ hive: HIVES[i % 4], a: i * 1.7, r: 0.5 + (i % 5) * 0.35, h: 0.6 + (i % 3) * 0.35, sp: 0.8 + (i % 4) * 0.3 }));
 
   const honey = grp('honey');
-  const hh2 = makeHoneyHouse(H); hh2.position.set(-27.4, 0, -4.6); honey.add(hh2); box(-28.85, -5.65, -25.95, -3.6, 'honey');
+  const hh2 = makeHoneyHouse(H); hh2.position.set(-27.4, 0, -4.6); honey.add(hh2); { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(hh2.position); honey.add(ao); } box(-28.85, -5.65, -25.95, -3.6, 'honey');
   anchors.honeyIn = basketAt(honey, S.honeyIn); anchors.honeyOut = tableAt(honey, S.honeyOut);
+
+  // ----- cheese room (east) and cider press (west), both facing the path from the north -----
+  const cheese = grp('cheese');
+  const cr = makeCheeseRoom(H); cr.position.set(19.8, 0, 4.0); cheese.add(cr); box(18.35, 3.0, 21.25, 5.05, 'cheese');
+  anchors.cheeseIn = basketAt(cheese, S.cheeseIn); anchors.cheeseOut = tableAt(cheese, S.cheeseOut);
+  const cider = grp('cider');
+  const cp = makeCiderPress(H); cp.position.set(-18.9, 0, 3.7); cider.add(cp); box(-20.35, 2.7, -17.45, 4.75, 'cider');
+  anchors.ciderIn = basketAt(cider, S.ciderIn); anchors.ciderOut = tableAt(cider, S.ciderOut);
+  for (const [gp, o] of [[cheese, cr], [cider, cp]]) { const ao = H.aoBlob(1.9, 1.4, 0.45); ao.position.copy(o.position); gp.add(ao); }
 
   // ----- extra display tables by the main stall -----
   const shopE = grp('shopE'), shopW = grp('shopW');
   const tE = makeTable(1.7, 0.8, 0.95); tE.position.set(4.75, 0, 5.6); shopE.add(tE); box(3.9, 5.2, 5.6, 6.0, 'pastry');
   const tW = makeTable(1.7, 0.8, 0.95); tW.position.set(-4.95, 0, 5.6); shopW.add(tW); box(-5.8, 5.2, -4.1, 6.0, 'tarts');
+  const shopN = grp('shopN');
+  const tN = makeTable(1.7, 0.8, 0.95); tN.position.set(7.4, 0, 5.6); shopN.add(tN); box(6.55, 5.2, 8.25, 6.0, 'cheese');
+  anchors.stallN = tN.position.clone().add(new V3(0, 0.98, 0));
   anchors.stallE = tE.position.clone().add(new V3(0, 0.98, 0)); anchors.stallW = tW.position.clone().add(new V3(0, 0.98, 0));
   const cloth = (t) => t.add(mesh(at(new THREE.BoxGeometry(1.72, 0.01, 0.82), 0, 0.98, 0), std({ color: 0xf7efe0, roughness: 0.9 }), false, true));
-  cloth(tE); cloth(tW);
+  cloth(tE); cloth(tW); cloth(tN);
 
   // ----- order wagon -----
   const wagonG = grp('wagon');
   const wagon = makeWagon(H); wagon.group.position.set(10.5, 0, -7.4); wagonG.add(wagon.group); box(9.2, -8.1, 12.6, -6.7, 'wagon');
   anchors.order = wagon.group.position.clone().add(new V3(0.45, 0.92, -0.1));
 
-  const stations = { custard: pOven, butter: ch, tart: tOven, honey: hh2 };
+  const stations = { custard: pOven, butter: ch, tart: tOven, honey: hh2, cheese: cr, cider: cp };
   const beeM = new THREE.Matrix4(), beeQ = new THREE.Quaternion();
   function animate(dt, t, on) {
     if (on.hens) for (const c of chickens) {

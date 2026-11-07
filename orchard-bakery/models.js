@@ -73,7 +73,7 @@ function mesh(geo, mat, cast = true, recv = true) { const m = new THREE.Mesh(geo
 function canvasTex(w, h, draw, repeat) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   draw(cv.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
   return t;
 }

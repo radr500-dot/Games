@@ -13,7 +13,10 @@ const SAVE_KEY = 'orchard-bakery-save-v1';
 // ---------- renderer ----------
 const canvas = $('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+// Draw at the screen's full sharpness (up to 3x on iPhone); only step down a little if a device really struggles.
+const DPR = window.devicePixelRatio || 1;
+let pixelRatio = Math.min(DPR, 3);
+const MIN_RATIO = Math.min(DPR, 1.75);
 renderer.setPixelRatio(pixelRatio);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -31,12 +34,13 @@ scene.environment = envTex;
 const hemi = new THREE.HemisphereLight(0xdcebff, 0x6a7a3a, 0.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d6, 3.0);
 sun.position.set(-12, 22, 10); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+const BIG = !matchMedia("(pointer: coarse)").matches && !/[?&]lite/.test(location.search);
+sun.shadow.mapSize.set(BIG ? 4096 : 2048, BIG ? 4096 : 2048);
 Object.assign(sun.shadow.camera, { left: -21, right: 21, top: 19, bottom: -19, near: 1, far: 70 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03; sun.shadow.radius = 3;
 scene.add(sun, sun.target);
 
-const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.6, 400);
 
 const world = buildWorld(scene);
 
@@ -64,18 +68,22 @@ const PRODUCTS = {
   custard: { raw: 'egg', inP: 'custardIn', outP: 'custardOut', stall: 'stallCustard', need: 'pastry' },
   butter: { raw: 'milk', inP: 'butterIn', outP: 'butterOut', stall: 'stallButter', need: 'churn' },
   tart: { raw: 'berry', inP: 'tartIn', outP: 'tartOut', stall: 'stallTart', need: 'tarts' },
-  honey: { raw: 'comb', inP: 'honeyIn', outP: 'honeyOut', stall: 'stallHoney', need: 'honey' }
+  honey: { raw: 'comb', inP: 'honeyIn', outP: 'honeyOut', stall: 'stallHoney', need: 'honey' },
+  cheese: { raw: 'milk', inP: 'cheeseIn', outP: 'cheeseOut', stall: 'stallCheese', need: 'cheese' },
+  cider: { raw: 'apple', inP: 'ciderIn', outP: 'ciderOut', stall: 'stallCider', need: 'cider' }
 };
 // Raw goods that animals and hives make on their own, ready to collect
 const PRODUCERS = { eggs: { kind: 'egg', need: 'hens' }, milk: { kind: 'milk', need: 'dairy' }, comb: { kind: 'comb', need: 'bees' } };
-const NAMES = { apple: 'apples', wheat: 'wheat', berry: 'strawberries', egg: 'eggs', milk: 'milk', comb: 'honeycomb', pie: 'pies', bread: 'loaves', jam: 'jars of jam', custard: 'custard tarts', butter: 'butter', tart: 'berry tarts', honey: 'jars of honey' };
+const NAMES = { apple: 'apples', wheat: 'wheat', berry: 'strawberries', egg: 'eggs', milk: 'milk', comb: 'honeycomb', pie: 'pies', bread: 'loaves', jam: 'jars of jam', custard: 'custard tarts', butter: 'butter', tart: 'berry tarts', honey: 'jars of honey', cheese: 'cheeses', cider: 'bottles of cider' };
 const SPARE = { apple: 1, wheat: 1, berry: 2, egg: 2, milk: 2, comb: 3 }; // farm cart prices
 const live = (k) => !PRODUCTS[k].need || !!S.unlocked[PRODUCTS[k].need];
-const BASE_PRICE = { pie: 6, bread: 7, jam: 9, custard: 12, butter: 14, tart: 16, honey: 18 };
+const BASE_PRICE = { pie: 6, bread: 7, jam: 9, custard: 12, butter: 14, tart: 16, honey: 18, cheese: 22, cider: 26 };
 const price = (k) => Math.round((BASE_PRICE[k] + (k === 'pie' && S.unlocked.price1 ? 3 : 0) + ((k === 'bread' || k === 'jam') && S.unlocked.price2 ? 3 : 0)) * (1 + 0.15 * lv('lvPrice')));
 const bakeTime = () => Math.max(0.12, 1.0 * (S.unlocked.oven1 ? 0.7 : 1) * (S.unlocked.oven2 ? 0.7 : 1) * Math.pow(0.88, lv('lvOven'))); // seconds per item
 const growRate = () => Math.pow(1.14, lv('lvGrow'));
 const farmRate = () => Math.pow(1.15, lv('lvFarm'));
+const beeRate = () => Math.pow(1.15, lv('lvHill'));
+const handRate = () => Math.min(2.2, Math.pow(1.08, lv('lvHands')));
 
 // ---------- sound (soft, optional) ----------
 let actx = null;
@@ -123,7 +131,7 @@ function updateFlights(dt) {
 }
 
 // ---------- piles (stacks of items on trays, tables, baskets, the stall) ----------
-const SCALE = { apple: 0.85, pie: 0.8, bread: 0.8, wheat: 1.1, coin: 1, jam: 1.12, berry: 1.25, egg: 1.2, milk: 1.1, comb: 1.05, custard: 1.25, butter: 1.2, tart: 1.0, honey: 1.12 };
+const SCALE = { apple: 0.85, pie: 0.8, bread: 0.8, wheat: 1.1, coin: 1, jam: 1.12, berry: 1.25, egg: 1.2, milk: 1.1, comb: 1.05, custard: 1.25, butter: 1.2, tart: 1.0, honey: 1.12, cheese: 1.15, cider: 1.1 };
 const LAYER = { // per-layer offsets, layer height, base lift
   apple: [[[-0.096, -0.045], [0.096, -0.045], [0, 0.096]], 0.215, 0.12],
   pie: [[[0, 0]], 0.112, 0],
@@ -137,7 +145,9 @@ const LAYER = { // per-layer offsets, layer height, base lift
   custard: [[[-0.125, -0.06], [0.125, -0.06], [0, 0.125]], 0.062, 0],
   butter: [[[-0.1, 0], [0.1, 0]], 0.09, 0],
   tart: [[[0, 0]], 0.075, 0],
-  honey: [[[-0.112, 0], [0.112, 0]], 0.24, 0]
+  honey: [[[-0.112, 0], [0.112, 0]], 0.24, 0],
+  cheese: [[[0, 0]], 0.095, 0],
+  cider: [[[-0.07, 0], [0.07, 0]], 0.34, 0]
 };
 function trayLayout(items, i) { // mixed stack: same-kind items share layers
   let y = 0, layerKind = null, inLayer = 0, p = null;
@@ -212,11 +222,14 @@ Object.assign(piles, {
   honeyIn: new Pile(FG.honey, gridLayout(2, 2, 0.36, 0.24), FA.honeyIn), honeyOut: new Pile(FG.honey, gridLayout(4, 2, 0.24, 0.24), FA.honeyOut),
   stallCustard: new Pile(FG.shopE, gridLayout(3, 3, 0.21, 0.22, -0.42, 0), FA.stallE), stallButter: new Pile(FG.shopE, gridLayout(2, 3, 0.2, 0.22, 0.48, 0), FA.stallE),
   stallTart: new Pile(FG.shopW, gridLayout(2, 2, 0.4, 0.36, -0.4, 0), FA.stallW), stallHoney: new Pile(FG.shopW, gridLayout(2, 3, 0.2, 0.22, 0.5, 0), FA.stallW),
+  cheeseIn: new Pile(FG.cheese, gridLayout(4, 2, 0.16, 0.2), FA.cheeseIn), cheeseOut: new Pile(FG.cheese, gridLayout(4, 2, 0.28, 0.26), FA.cheeseOut),
+  ciderIn: new Pile(FG.cider, basketLayout, FA.ciderIn), ciderOut: new Pile(FG.cider, gridLayout(5, 2, 0.2, 0.22), FA.ciderOut),
+  stallCheese: new Pile(FG.shopN, gridLayout(2, 2, 0.28, 0.3, -0.42, 0), FA.stallN), stallCider: new Pile(FG.shopN, gridLayout(3, 2, 0.16, 0.22, 0.45, 0), FA.stallN),
   order: new Pile(FG.wagon, gridLayout(4, 3, 0.3, 0.3), FA.order)
 });
 const PILE_KIND = { pieIn: 'apple', pieOut: 'pie', breadIn: 'wheat', breadOut: 'bread', jamIn: 'apple', jamOut: 'jam', eggs: 'egg', milk: 'milk', comb: 'comb' };
 for (const k of Object.keys(PRODUCTS)) { const P = PRODUCTS[k]; PILE_KIND[P.inP] = P.raw; PILE_KIND[P.outP] = k; PILE_KIND[P.stall] = k; }
-const MAXP = { pieIn: 28, breadIn: 24, jamIn: 28, pieOut: 12, breadOut: 12, jamOut: 16, custardIn: 28, custardOut: 15, butterIn: 16, butterOut: 15, tartIn: 28, tartOut: 12, honeyIn: 12, honeyOut: 16, eggs: 15, milk: 10, comb: 8 };
+const MAXP = { pieIn: 28, breadIn: 24, jamIn: 28, pieOut: 12, breadOut: 12, jamOut: 16, custardIn: 28, custardOut: 15, butterIn: 16, butterOut: 15, tartIn: 28, tartOut: 12, honeyIn: 12, honeyOut: 16, cheeseIn: 16, cheeseOut: 16, ciderIn: 28, ciderOut: 20, eggs: 15, milk: 10, comb: 8 };
 const maxp = (name) => (name.startsWith('stall') ? (S.unlocked.stall2 ? 20 : 12) + lv('lvStore') * 4 : MAXP[name] + (PRODUCERS[name] ? 0 : lv('lvStore') * 4));
 const HELPER_FILL = 16; // helpers leave room in the baskets so you can always add your own
 
@@ -267,7 +280,7 @@ function burst(center, n = 14, radius = 1.6) {
 const ICON = {};
 function renderIcons() {
   const ir = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-  ir.setSize(128, 128); ir.setPixelRatio(1); ir.outputColorSpace = THREE.SRGBColorSpace; ir.toneMapping = THREE.ACESFilmicToneMapping;
+  ir.setSize(256, 256); ir.setPixelRatio(1); ir.outputColorSpace = THREE.SRGBColorSpace; ir.toneMapping = THREE.ACESFilmicToneMapping;
   const is = new THREE.Scene();
   const ip = new THREE.PMREMGenerator(ir); is.environment = ip.fromScene(new RoomEnvironment(ir), 0.04).texture;
   is.add(new THREE.HemisphereLight(0xffffff, 0x887766, 1.2));
@@ -291,7 +304,7 @@ function renderIcons() {
   shot('helper', makePerson({ seed: 21, shirt: 0x8fb86a, hairStyle: 3 }), new V3(0.2, 0.25, 1));
   shot('runner', makePerson({ seed: 33, shirt: 0x6a8fc0, apron: true, hat: true }), new V3(0.2, 0.25, 1));
   shot('flower', (() => { const g = new THREE.Group(); const c = [0xe58fb0, 0xf4d35e, 0xfff6e0, 0xc8553d, 0xb7a6e8]; for (let i = 0; i < 9; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), new THREE.MeshStandardMaterial({ color: c[i % 5], roughness: 0.6 })); f.position.set(Math.cos(i * 2.4) * 0.22 * Math.sqrt(i / 9), 0.35 + (i % 3) * 0.05, Math.sin(i * 2.4) * 0.22 * Math.sqrt(i / 9)); g.add(f); } const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.2, 0.36, 16), new THREE.MeshStandardMaterial({ color: 0xb8653d, roughness: 0.8 })); pot.position.y = 0.12; g.add(pot); return g; })());
-  for (const k of ['egg', 'milk', 'custard', 'butter', 'tart', 'honey']) shot(k, makeFarmItem(k), new V3(0.2, 0.6, 1));
+  for (const k of ['egg', 'milk', 'custard', 'butter', 'tart', 'honey', 'cheese', 'cider']) shot(k, makeFarmItem(k), new V3(0.2, 0.6, 1));
   shot('berry', (() => { const b = makeFarmItem('berry'); b.rotation.z = 0.5; return b; })(), new V3(0.2, 0.3, 1));
   shot('comb', (() => { const c = makeFarmItem('comb'); c.rotation.x = 1.0; return c; })(), new V3(0, 0.3, 1));
   shot('wagon', (() => { const w = makeWagonIcon(); w.rotation.y = -0.6; return w; })(), new V3(0.3, 0.45, 1));
@@ -307,7 +320,7 @@ let IMG = {};
 const pads = {};
 function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 // A pad is either a one-time build (PADS) or an endless level-up (LEVELS) whose price rises gently each time.
-const levelCost = (id) => { const L = lv(id), b = LEVELS[id].base; return Math.round((b * Math.pow(1.3, L) + 40 * L) / 5) * 5; };
+const levelCost = (id) => { const L = lv(id), b = LEVELS[id].base; return Math.round((b * Math.pow(1.22, L) + 40 * L) / 5) * 5; };
 function padDef(id) {
   if (PADS[id]) return PADS[id];
   const d = LEVELS[id];
@@ -347,10 +360,12 @@ function makePad(id) {
 }
 function activePadIds() {
   const out = [];
+  let open = 0, waiting = 0;
   for (const id of PAD_ORDER) {
     if (S.unlocked[id]) continue;
     const req = PADS[id].req; if (req && !S.unlocked[req]) continue;
-    out.push(id); if (out.length >= 3) break;
+    if (padLocked(id)) { if (waiting++ < 1) out.push(id); continue; } // a locked one doesn't take a buildable slot
+    out.push(id); if (++open >= 3) break;
   }
   // level-ups never run out: each appears once its last one-time build on that spot is done
   for (const id of Object.keys(LEVELS)) { const d = LEVELS[id]; if (S.unlocked[d.req] && !(d.max && lv(id) >= d.max)) out.push(id); }
@@ -517,7 +532,7 @@ const WORKER_LOOK = {
 };
 // Farmhands on the new land carry produce to the right basket. A route either picks from bushes or takes from a pile.
 const ROUTES = {
-  haulE: [{ from: 'eggs', to: 'custardIn' }, { from: 'milk', to: 'butterIn' }],
+  haulE: [{ from: 'eggs', to: 'custardIn' }, { from: 'milk', to: 'butterIn' }, { from: 'milk', to: 'cheeseIn' }],
   haulW: [{ pick: 'berry', to: 'tartIn' }, { from: 'comb', to: 'honeyIn' }]
 };
 function addWorker(kind, look = kind) {
@@ -537,7 +552,7 @@ function stepToward(a, target, dt) {
   // simple steering: if a wall or oven is in the way, walk along it until the way is clear
   if (a.detour > 0) { a.detour -= dt; d.applyAxisAngle(new V3(0, 1, 0), a.side * 1.25); }
   else if (a.stuck > 0.35) { a.detour = 0.9; a.stuck = 0; a.side = a.side ? -a.side * (Math.random() < 0.7 ? -1 : 1) : 1; }
-  const want = d.multiplyScalar(a.speed);
+  const want = d.multiplyScalar(a.speed * (a === player ? 1 : handRate()));
   a.vel.lerp(want, 1 - Math.exp(-8 * dt));
   return false;
 }
@@ -684,6 +699,13 @@ function updateDwell(dt) {
   }
 }
 const SETTLE = 0.3;
+// Trees and bushes work the same way: walk past and nothing happens, stop beside one to pick.
+let treeDwell = 0;
+function updateTreeDwell(dt) {
+  const p = player.obj.position, slow = Math.hypot(player.vel.x, player.vel.z) < 2.2;
+  const by = world.trees.some((t) => treeActive(t) && Math.hypot(t.x - p.x, t.z - p.z) <= (t.reach || 1.75) && t.apples.some((x) => x.grow >= 1));
+  treeDwell = by && slow ? treeDwell + dt : by ? Math.max(0, treeDwell - dt) : 0;
+}
 const settled = (a, z) => a !== player || (dwell[z] || 0) >= SETTLE;
 function near(a, z) { return zones[z] && a.obj.position.distanceTo(zones[z].pos) < zones[z].r; }
 function interact(a, dt, allowed, helper = false) {
@@ -691,7 +713,7 @@ function interact(a, dt, allowed, helper = false) {
   const can = (z) => !allowed || allowed.includes(z);
   const pos = a.obj.position;
   // pick apples
-  if (can('trees') && a.carry.count < a.cap) {
+  if (can('trees') && a.carry.count < a.cap && (a !== player || treeDwell >= SETTLE)) {
     for (const t of world.trees) {
       if (!treeActive(t) || (a.fruitOnly && (t.fruit || 'apple') !== a.fruitOnly) || Math.hypot(t.x - pos.x, t.z - pos.z) > (t.reach || 1.75)) continue;
       const ap = t.apples.find((x) => x.grow >= 1);
@@ -789,10 +811,11 @@ function applyUnlock(id, animate) {
   if (id === 'jam') show(world.jamGroup, new V3(-6, 0, -4), 0);
   if (id === 'sign1') show(world.signpost, world.signpost.position.clone(), 0);
   if (id === 'sign2') show(world.bunting, world.bunting.position.clone(), 0);
-  const farmShow = { eastLand: [22, 0, 0], hens: [19.8, 0, -10], pastry: [19.8, 0, -4.6], dairy: [27.2, 0, -9], churn: [27.2, 0, -4.6], berries: [-24.8, 0, 6], tarts: [-20.5, 0, -4.6], bees: [-27.4, 0, -10.5], honey: [-27.4, 0, -4.6], wagon: [10.5, 0, -7.4] };
+  const farmShow = { eastLand: [22, 0, 0], hens: [19.8, 0, -10], pastry: [19.8, 0, -4.6], dairy: [27.2, 0, -9], churn: [27.2, 0, -4.6], berries: [-24.8, 0, 6], tarts: [-20.5, 0, -4.6], cheese: [19.8, 0, 4.0], cider: [-18.9, 0, 3.7], bees: [-27.4, 0, -10.5], honey: [-27.4, 0, -4.6], wagon: [10.5, 0, -7.4] };
   if (farmShow[id]) show(FG[id], new V3(...farmShow[id]), 0);
   if (id === 'pastry' || id === 'churn') FG.shopE.visible = true;
   if (id === 'tarts' || id === 'honey') FG.shopW.visible = true;
+  if (id === 'cheese' || id === 'cider') FG.shopN.visible = true;
   if (id === 'eastLand' || id === 'westLand') {
     const d = world.dividers[id]; if (animate && d.visible) for (let z = -13; z <= 14; z += 3) burst(new V3(id === 'eastLand' ? 16.6 : -16.6, 0, z), 6, 1);
     d.visible = false;
@@ -808,7 +831,7 @@ function applyUnlock(id, animate) {
   player.cap = cap();
 }
 function unlock(id, animate) {
-  S.stats.builds++; addXP(3);
+  S.stats.builds++; addXP(5);
   if (LEVELS[id]) { // a level-up: same spot, new price, and the pad stays for the next one
     const name = padDef(id).name;
     S.levels[id] = lv(id) + 1; delete S.paid[id];
@@ -960,7 +983,7 @@ const marker = new THREE.Group();
   scene.add(marker); marker.visible = false;
 }
 let idle = 0, hintText = '';
-const BAKE_NAME = { pie: 'pie oven', bread: 'bread oven', jam: 'jam kitchen', custard: 'custard oven', butter: 'butter churn', tart: 'tart oven', honey: 'honey house' };
+const BAKE_NAME = { pie: 'pie oven', bread: 'bread oven', jam: 'jam kitchen', custard: 'custard oven', butter: 'butter churn', tart: 'tart oven', honey: 'honey house', cheese: 'cheese room', cider: 'cider press' };
 function nextGoal() {
   const c = player.carry, has = (k) => c.countOf(k) > 0;
   const room = (k) => live(k) && piles[PRODUCTS[k].inP].count < maxp(PRODUCTS[k].inP);
@@ -1112,7 +1135,7 @@ function updateWorld(dt, t) {
   // hens lay, cows give milk, bees fill their frames
   for (const z of Object.keys(PRODUCERS)) {
     if (!S.unlocked[PRODUCERS[z].need] || piles[z].count >= maxp(z)) continue;
-    prodTimers[z] = (prodTimers[z] || 0) + dt * farmRate();
+    prodTimers[z] = (prodTimers[z] || 0) + dt * (z === 'comb' ? beeRate() : farmRate());
     const every = { eggs: 1.6, milk: 2.4, comb: 3.2 }[z];
     if (prodTimers[z] >= every) { prodTimers[z] = 0; piles[z].add(PRODUCERS[z].kind, PRODUCE_AT[z], 0.5); }
   }
@@ -1135,9 +1158,10 @@ function updateWorld(dt, t) {
     const dz = tr.z - pp.z, dx = Math.abs(tr.x - pp.x);
     const hide = playing && dz > -0.6 && dz < 4.2 && dx < 1.9;
     const want = hide ? 0.32 : 1;
-    if (Math.abs(tr.fade - want) < 0.005) { if (tr.fade !== want) { tr.fade = want; const m = tr.foliage.material; m.opacity = want; if (want === 1) { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; } } continue; }
+    const fm = [tr.foliage.material, ...tr.foliage.children.map((c) => c.material)];
+    if (Math.abs(tr.fade - want) < 0.005) { if (tr.fade !== want) { tr.fade = want; for (const m of fm) { m.opacity = want; if (want === 1) { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; } } } continue; }
     tr.fade += (want - tr.fade) * Math.min(1, dt * 8);
-    const m = tr.foliage.material, tp = tr.fade < 0.99; if (m.transparent !== tp) { m.transparent = tp; m.needsUpdate = true; } m.opacity = tr.fade; m.depthWrite = !tp;
+    const tp = tr.fade < 0.99; for (const m of fm) { if (m.transparent !== tp) { m.transparent = tp; m.needsUpdate = true; } m.opacity = tr.fade; m.depthWrite = !tp; }
   }
   if (S.unlocked.wheat) {
     const rate = fastGrow > 0 ? 1 / 1.2 : growRate() / 6; fastGrow -= dt;
@@ -1174,7 +1198,7 @@ function update(dt, t) {
     const accel = (ix || iy) ? 10 : 12;
     player.vel.lerp(want, 1 - Math.exp(-accel * dt));
     moveActor(player, dt);
-    updateDwell(dt);
+    updateDwell(dt); updateTreeDwell(dt);
     interact(player, dt);
     updateCamera(dt);
     updateHint(dt, !!(ix || iy));
@@ -1198,7 +1222,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; simT += dt;
   // quietly lower resolution if a phone is struggling, to keep motion smooth
   frames++; if (dt > 0.026) slow++;
-  if (frames === 120) { if (slow > 60 && pixelRatio > 1.2) { pixelRatio = Math.max(1, pixelRatio - 0.5); renderer.setPixelRatio(pixelRatio); resize(); } frames = 0; slow = 0; }
+  if (frames === 120) { if (slow > 84 && pixelRatio > MIN_RATIO + 0.01) { pixelRatio = Math.max(MIN_RATIO, pixelRatio - 0.25); renderer.setPixelRatio(pixelRatio); resize(); } frames = 0; slow = 0; }
   update(dt, simT);
   if (window.__camOverride) window.__camOverride(camera);
   renderer.render(scene, camera);
@@ -1221,6 +1245,8 @@ function setupZones() {
   addZone('butterIn', SPOTS.butterIn, 'milk', 'Milk in', FG.churn); addZone('butterOut', SPOTS.butterOut, 'butter', 'Butter', FG.churn);
   addZone('tartIn', SPOTS.tartIn, 'berry', 'Berries in', FG.tarts); addZone('tartOut', SPOTS.tartOut, 'tart', 'Tarts', FG.tarts);
   addZone('honeyIn', SPOTS.honeyIn, 'comb', 'Comb in', FG.honey); addZone('honeyOut', SPOTS.honeyOut, 'honey', 'Honey', FG.honey);
+  addZone('cheeseIn', SPOTS.cheeseIn, 'milk', 'Milk in', FG.cheese); addZone('cheeseOut', SPOTS.cheeseOut, 'cheese', 'Cheese', FG.cheese);
+  addZone('ciderIn', SPOTS.ciderIn, 'apple', 'Apples in', FG.cider); addZone('ciderOut', SPOTS.ciderOut, 'cider', 'Cider', FG.cider);
   addZone('order', SPOTS.order, 'wagon', 'Orders', FG.wagon);
 }
 function restore() {
@@ -1230,7 +1256,7 @@ function restore() {
   world.tea.group.visible = !!S.unlocked.tea; world.flowers.visible = !!S.unlocked.flowers;
   world.jamGroup.visible = !!S.unlocked.jam; world.signpost.visible = !!S.unlocked.sign1; world.bunting.visible = !!S.unlocked.sign2;
   for (const id of Object.keys(FG)) FG[id].visible = !!S.unlocked[id];
-  FG.shopE.visible = !!(S.unlocked.pastry || S.unlocked.churn); FG.shopW.visible = !!(S.unlocked.tarts || S.unlocked.honey);
+  FG.shopE.visible = !!(S.unlocked.pastry || S.unlocked.churn); FG.shopW.visible = !!(S.unlocked.tarts || S.unlocked.honey); FG.shopN.visible = !!(S.unlocked.cheese || S.unlocked.cider);
   world.colliders.push({ box: [SPOTS.breadOven.x - 1.4, SPOTS.breadOven.z - 1.3, SPOTS.breadOven.x + 1.4, SPOTS.breadOven.z + 1.3], need: 'bread' });
   world.colliders.push({ x: 8, z: 11.4, r: 0.01, need: 'tea' });
   for (const [x, z] of [[6.4, 10.2], [9.6, 10.2], [8.0, 12.9]]) world.colliders.push({ x, z, r: 0.55, need: 'tea' });

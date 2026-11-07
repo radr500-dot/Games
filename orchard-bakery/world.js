@@ -14,7 +14,7 @@ export const PATHS = [ // [x1,z1,x2,z2,width]
   [0, 18, 0, 6.4, 2.0], [0, 4.2, 0, -8.6, 2.0],
   [0, 1.2, -6, 1.2, 1.6], [0, 1.2, 6.2, 1.2, 1.6],
   [0, -3.0, -5.2, -3.0, 1.6], [0, -3.0, 5.2, -3.0, 1.6],
-  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-5.2, -3.0, -9.6, -5.4, 1.4], [-3.2, 1.2, -3.2, -0.6, 1.2],
+  [0, 9, 6.5, 10.5, 1.4], [0, 9.5, -4.5, 10.8, 1.2], [-5.2, -3.0, -8.6, -5.6, 1.6], [-8.6, -5.6, -10.9, -5.6, 1.4], [-3.2, 1.2, -3.2, -0.6, 1.2],
   ...FARM_PATHS
 ];
 export const PLAZAS = [[0, -6.2, 1.6], [0, 4.9, 2.4]];
@@ -42,7 +42,7 @@ export const SPOTS = {
 export const TREE_SPOTS = {
   start: [[-7.4, -1.6], [-10.4, -1.6], [-7.4, 2.0], [-10.4, 2.0]],
   trees2: [[-13.4, -1.6], [-13.4, 2.0], [-7.4, 5.6], [-10.4, 5.6]],
-  orchard3: [[-13.4, 5.6], [-7.4, -5.2], [-10.4, -5.2], [-13.4, -5.2]]
+  orchard3: [[-13.4, 5.6], [-15.2, -3.6], [-15.2, 3.9], [-13.4, -5.2]]
 };
 export const FIELD = { x0: 7, z0: -3, nx: 6, nz: 7 };
 export const TEA = [[6.4, 10.2, 0], [9.6, 10.2, 1], [8.0, 12.9, 2]];
@@ -69,32 +69,36 @@ export const PADS = {
   helper3: { pos: [-4.8, 4.3], cost: 220, name: 'Second orchard helper', icon: 'helper', req: 'helper' },
   // the bigger farm: new land, new produce, new bakes
   wagon: { pos: [10.5, -5.3], cost: 120, name: 'Order wagon', icon: 'wagon' },
-  eastLand: { pos: [14.6, -6.2], cost: 400, name: 'East meadow', icon: 'land', lvl: 5 },
+  eastLand: { pos: [14.6, -6.2], cost: 400, name: 'East meadow', icon: 'land', lvl: 4 },
   hens: { pos: [19.8, -7.6], cost: 250, name: 'Hen house', icon: 'egg', req: 'eastLand' },
   pastry: { pos: [19.8, -2.1], cost: 320, name: 'Custard oven', icon: 'custard', req: 'hens' },
-  dairy: { pos: [27.2, -7.6], cost: 480, name: 'Dairy barn', icon: 'milk', req: 'pastry', lvl: 7 },
+  dairy: { pos: [27.2, -7.6], cost: 480, name: 'Dairy barn', icon: 'milk', req: 'pastry', lvl: 6 },
   churn: { pos: [27.2, -2.1], cost: 540, name: 'Butter churn', icon: 'butter', req: 'dairy' },
   runner2: { pos: [-1.9, -2.6], cost: 500, name: 'Second shop helper', icon: 'runner', req: 'pastry' },
   handE: { pos: [23.5, -5.6], cost: 600, name: 'Meadow helper', icon: 'helper', req: 'churn' },
-  westLand: { pos: [-15.0, 0.2], cost: 900, name: 'West hill', icon: 'land', req: 'eastLand', lvl: 10 },
+  westLand: { pos: [-15.0, 0.2], cost: 900, name: 'West hill', icon: 'land', req: 'eastLand', lvl: 8 },
   berries: { pos: [-18.6, 0.2], cost: 650, name: 'Strawberry patch', icon: 'berry', req: 'westLand' },
   tarts: { pos: [-20.5, -2.1], cost: 800, name: 'Tart oven', icon: 'tart', req: 'berries' },
-  bees: { pos: [-27.4, -7.6], cost: 1000, name: 'Bee hives', icon: 'comb', req: 'tarts', lvl: 13 },
+  bees: { pos: [-27.4, -7.6], cost: 1000, name: 'Bee hives', icon: 'comb', req: 'tarts', lvl: 10 },
   honey: { pos: [-27.4, -2.1], cost: 1100, name: 'Honey house', icon: 'honey', req: 'bees' },
-  handW: { pos: [-24, -5.6], cost: 1250, name: 'Hill helper', icon: 'helper', req: 'honey' }
+  handW: { pos: [-24, -5.6], cost: 1250, name: 'Hill helper', icon: 'helper', req: 'honey' },
+  cheese: { pos: [19.8, 6.5], cost: 900, name: 'Cheese room', icon: 'cheese', req: 'churn', lvl: 9 },
+  cider: { pos: [-18.9, 6.2], cost: 1400, name: 'Cider press', icon: 'cider', req: 'tarts', lvl: 11 }
 };
 // Upgrades that never run out: each one levels up again and again, a little dearer each time.
 export const LEVELS = {
   lvOven: { pos: [0, -7.0], name: 'Faster ovens', icon: 'fire', req: 'oven2', base: 200 },
   lvPrice: { pos: [2.8, -1.6], name: 'Better recipes', icon: 'pie', req: 'price2', base: 180 },
-  lvTray: { pos: [-2.6, 2.6], name: 'Bigger tray', icon: 'tray', req: 'stall2', base: 160, max: 12 },
+  lvTray: { pos: [-2.6, 2.6], name: 'Bigger tray', icon: 'tray', req: 'stall2', base: 160, max: 16 },
   lvCrowd: { pos: [2.6, 12.6], name: 'More customers', icon: 'sign', req: 'sign2', base: 200 },
   lvGrow: { pos: [-4.8, 4.3], name: 'Faster growing', icon: 'tree', req: 'helper3', base: 220 },
-  lvStore: { pos: [5.0, 3.3], name: 'Bigger baskets', icon: 'bread', req: 'helper2', base: 160, max: 10 },
-  lvFarm: { pos: [23.5, -5.6], name: 'Busier animals', icon: 'egg', req: 'handE', base: 400 }
+  lvStore: { pos: [5.0, 3.3], name: 'Bigger baskets', icon: 'bread', req: 'helper2', base: 160, max: 16 },
+  lvFarm: { pos: [23.5, -5.6], name: 'Busier animals', icon: 'egg', req: 'handE', base: 400 },
+  lvHands: { pos: [-1.9, -2.6], name: 'Quicker helpers', icon: 'runner', req: 'runner2', base: 350 },
+  lvHill: { pos: [-24, -5.6], name: 'Busier bees', icon: 'comb', req: 'handW', base: 500 }
 };
 export const PAD_ORDER = ['trees2', 'basket', 'wheat', 'sign1', 'bread', 'oven1', 'jam', 'tea', 'helper', 'flowers', 'price1', 'barrow', 'runner', 'sign2', 'orchard3', 'oven2', 'helper2', 'price2', 'stall2', 'helper3',
-  'wagon', 'eastLand', 'hens', 'pastry', 'dairy', 'churn', 'runner2', 'handE', 'westLand', 'berries', 'tarts', 'bees', 'honey', 'handW'];
+  'wagon', 'eastLand', 'hens', 'pastry', 'dairy', 'churn', 'runner2', 'handE', 'westLand', 'berries', 'tarts', 'cheese', 'bees', 'honey', 'cider', 'handW'];
 
 // ---------- sky + ground ----------
 function makeSky(scene) {
@@ -121,7 +125,7 @@ function makeGround(scene) {
   const SIZE = 76, PX = 2048;
   const tex = canvasTex(PX, PX, (c, w, h) => {
     const img = c.createImageData(w, h), d = img.data;
-    const g1 = [0.33, 0.52, 0.2], g2 = [0.5, 0.64, 0.28], dirt = [0.76, 0.63, 0.44], dirt2 = [0.62, 0.5, 0.34];
+    const g1 = [0.38, 0.64, 0.2], g2 = [0.47, 0.73, 0.25], dirt = [0.93, 0.8, 0.56], dirt2 = [0.86, 0.72, 0.5];
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const wx = (x / w - 0.5) * SIZE, wz = (y / h - 0.5) * SIZE;
       const n = fbm(wx * 0.35, 0, wz * 0.35) * 0.5 + 0.5, fine = noise3(wx * 6, 1, wz * 6) * 0.5 + 0.5;
@@ -140,13 +144,36 @@ function makeGround(scene) {
       const x = rr() * w, y = rr() * h, wx = (x / w - 0.5) * SIZE, wz = (y / h - 0.5) * SIZE;
       const p = pathAmount(wx, wz);
       if (p > 0.6) { c.fillStyle = rr() > 0.5 ? 'rgba(110,90,70,.35)' : 'rgba(240,225,200,.4)'; c.beginPath(); c.arc(x, y, 0.8 + rr() * 1.4, 0, 7); c.fill(); }
-      else if (p < 0.1) { c.fillStyle = rr() > 0.5 ? 'rgba(60,95,40,.35)' : 'rgba(170,200,110,.3)'; c.fillRect(x, y, 1.5, 3 + rr() * 3); }
+      else if (p < 0.1) { c.fillStyle = rr() > 0.5 ? 'rgba(80,130,50,.16)' : 'rgba(190,225,130,.18)'; c.fillRect(x, y, 1.5, 3 + rr() * 3); }
     }
   });
-  const g = new THREE.PlaneGeometry(SIZE, SIZE); g.rotateX(-Math.PI / 2);
-  const ground = mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }), false, true);
+  const g = new THREE.PlaneGeometry(SIZE, SIZE, 48, 48); g.rotateX(-Math.PI / 2); // split up so depth stays accurate far from the middle
+  const gm = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
+  // close-up detail: a small tiled texture of soil grains and grass flecks, so the ground stays sharp near the camera
+  const det = canvasTex(512, 512, (c, w, h) => {
+    const img = c.createImageData(w, h), d = img.data;
+    const f = (x, y) => noise3(x * 0.37, 7, y * 0.37) * 50 + noise3(x * 0.09, 1, y * 0.09) * 30;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const sx = x / w, sy = y / h; // blend four shifted copies so the tile repeats without seams
+      const val = 128 + f(x, y) * (1 - sx) * (1 - sy) + f(x - w, y) * sx * (1 - sy) + f(x, y - h) * (1 - sx) * sy + f(x - w, y - h) * sx * sy;
+      const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = Math.max(0, Math.min(255, val)); d[i + 3] = 255;
+    }
+    c.putImageData(img, 0, 0);
+    const r = rand(99);
+    for (let i = 0; i < 2600; i++) { c.fillStyle = r() > 0.5 ? 'rgba(40,40,40,.35)' : 'rgba(235,235,235,.35)'; c.beginPath(); c.arc(r() * w, r() * h, 0.6 + r() * 1.6, 0, 7); c.fill(); }
+  });
+  det.colorSpace = THREE.NoColorSpace; det.wrapS = det.wrapT = THREE.RepeatWrapping;
+  gm.onBeforeCompile = (sh) => {
+    sh.uniforms.uDet = { value: det };
+    sh.fragmentShader = 'uniform sampler2D uDet;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+      `#include <map_fragment>
+      float dA = texture2D(uDet, vMapUv * 38.0).r, dB = texture2D(uDet, vMapUv * 9.0 + 0.37).r;
+      diffuseColor.rgb *= 0.95 + (dA * 0.6 + dB * 0.4) * 0.1;`);
+  };
+  const ground = mesh(g, gm, false, true);
   scene.add(ground);
-  const far = mesh(at(new THREE.CircleGeometry(260, 48), 0, -0.02, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x7c9a4f, roughness: 1 }), false, true);
+  // a ring (not a disc) so none of its huge triangles lie under the play area, where they could fight the ground for depth
+  const far = mesh(at(new THREE.RingGeometry(37, 260, 64, 3), 0, -0.04, 0, -Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x7c9a4f, roughness: 1 }), false, true);
   scene.add(far);
   // Gentle hills far away
   const hm = new THREE.MeshStandardMaterial({ color: 0x86a45a, roughness: 1 });
@@ -159,12 +186,12 @@ function makeGround(scene) {
 }
 
 // ---------- vegetation ----------
-function foliageBlob(cx, cy, cz, rad, seed, light = 0x86b452, dark = 0x2f5a22, detail) {
+function foliageBlob(cx, cy, cz, rad, seed, light = 0x7cc232, dark = 0x1f6a1a, detail) {
   // Leafy canopy: a bumpy ball made of many small leaf clumps, darker in the hollows.
   const ico = new THREE.IcosahedronGeometry(rad, detail ?? (rad > 0.8 ? 4 : 3)); ico.deleteAttribute('normal'); ico.deleteAttribute('uv');
   const g = mergeVertices(ico);
-  const L = new THREE.Color(light), D = new THREE.Color(dark), M = new THREE.Color(0x5f8f3a);
-  const bump = (v) => fbm(v.x * 2.2 + seed, v.y * 2.2, v.z * 2.2 - seed) * 0.22 + Math.abs(noise3(v.x * 7 / rad + seed, v.y * 7 / rad, v.z * 7 / rad)) * 0.11;
+  const L = new THREE.Color(light), D = new THREE.Color(dark), M = new THREE.Color(0x46962a);
+  const bump = (v) => fbm(v.x * 1.6 + seed, v.y * 1.6, v.z * 1.6 - seed) * 0.12; // smooth, rounded, toy-like
   displace(g, (v) => { v.multiplyScalar(1 + bump(v) - 0.04); });
   g.translate(cx, cy, cz);
   paint(g, (x, y, z, c) => {
@@ -175,6 +202,75 @@ function foliageBlob(cx, cy, cz, rad, seed, light = 0x86b452, dark = 0x2f5a22, d
     c.copy(D).lerp(M, Math.min(1, k * 1.6)).lerp(L, Math.max(0, k * 1.6 - 0.6));
   });
   return g;
+}
+let LEAF_MAT = null;
+function leafMat() {
+  if (LEAF_MAT) return LEAF_MAT;
+  const tex = canvasTex(256, 256, (c, w, h) => {
+    c.clearRect(0, 0, w, h);
+    const r = rand(5);
+    for (let i = 0; i < 22; i++) { // a sprig of small pointed leaves
+      const x = w * (0.2 + r() * 0.6), y = h * (0.2 + r() * 0.6), a = r() * Math.PI * 2, L = 34 + r() * 26, W = L * 0.42;
+      c.save(); c.translate(x, y); c.rotate(a);
+      const g = c.createLinearGradient(-W, 0, W, 0), v = 0.85 + r() * 0.3;
+      g.addColorStop(0, `rgb(${110 * v},${158 * v},${70 * v})`); g.addColorStop(1, `rgb(${150 * v},${196 * v},${96 * v})`);
+      c.fillStyle = g; c.beginPath(); c.moveTo(0, -L / 2); c.quadraticCurveTo(W, 0, 0, L / 2); c.quadraticCurveTo(-W, 0, 0, -L / 2); c.fill();
+      c.strokeStyle = 'rgba(40,70,25,.55)'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(0, -L / 2); c.lineTo(0, L / 2); c.stroke();
+      c.restore();
+    }
+  });
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.premultiplyAlpha = false;
+  LEAF_MAT = new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75 });
+  return LEAF_MAT;
+}
+function leafCards(centers, seed) {
+  const r = rand(seed * 31 + 7), pos = [], uv = [], col = [], idx = [];
+  const L = new THREE.Color(1, 1, 0.92), D = new THREE.Color(0.42, 0.5, 0.38), c = new THREE.Color();
+  const n = new THREE.Vector3(), t1 = new THREE.Vector3(), t2 = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3();
+  for (const [cx, cy, cz, rad] of centers) {
+    const count = Math.round(120 * rad * rad + 20);
+    for (let i = 0; i < count; i++) {
+      n.set(r() * 2 - 1, r() * 1.6 - 0.5, r() * 2 - 1).normalize();
+      p.set(cx, cy, cz).addScaledVector(n, rad * (1.0 + r() * 0.16));
+      const s = 0.3 + r() * 0.2;
+      t1.crossVectors(n, up); if (t1.lengthSq() < 0.01) t1.set(1, 0, 0); t1.normalize().applyAxisAngle(n, r() * 6.28);
+      t2.crossVectors(n, t1).normalize();
+      // tilt each card a little so they don't all lie flat on the ball
+      n.addScaledVector(t1, (r() - 0.5) * 0.8).normalize(); t2.crossVectors(n, t1).normalize();
+      const b = pos.length / 3;
+      for (const [u, v] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+        const ox = (u - 0.5) * s, oy = (v - 0.5) * s;
+        pos.push(p.x + t1.x * ox + t2.x * oy, p.y + t1.y * ox + t2.y * oy, p.z + t1.z * ox + t2.z * oy); uv.push(u, v);
+      }
+      const k = THREE.MathUtils.clamp((n.y * 0.5 + 0.5) * 0.8 + r() * 0.35, 0, 1);
+      c.copy(D).lerp(L, k); for (let j = 0; j < 4; j++) col.push(c.r, c.g, c.b);
+      idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+  // light the cards like the canopy they sit on (outward normals), not like flat paper
+  const nr = g.attributes.normal, ps = g.attributes.position;
+  for (let i = 0; i < ps.count; i++) {
+    let best = centers[0], bd = Infinity;
+    for (const ct of centers) { const d = Math.hypot(ps.getX(i) - ct[0], ps.getY(i) - ct[1], ps.getZ(i) - ct[2]) - ct[3]; if (d < bd) { bd = d; best = ct; } }
+    n.set(ps.getX(i) - best[0], ps.getY(i) - best[1], ps.getZ(i) - best[2]).normalize(); nr.setXYZ(i, n.x, n.y, n.z);
+  }
+  return g;
+}
+// a soft dark patch on the ground under things, so they sit on the grass instead of floating
+const AO_MATS = {}; let AO_TEX = null;
+export function aoBlob(w, d, strength = 0.45) {
+  if (!AO_TEX) {
+    AO_TEX = canvasTex(128, 128, (c, W, H) => { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); const g = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2); g.addColorStop(0, '#fff'); g.addColorStop(0.45, '#999'); g.addColorStop(1, '#000'); c.fillStyle = g; c.fillRect(0, 0, W, H); });
+    AO_TEX.colorSpace = THREE.NoColorSpace;
+  }
+  const key = strength.toFixed(2);
+  const mat = AO_MATS[key] || (AO_MATS[key] = new THREE.MeshBasicMaterial({ color: 0x14200c, alphaMap: AO_TEX, transparent: true, opacity: strength, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: false }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w * 2, d * 2).rotateX(-Math.PI / 2), mat);
+  m.position.y = 0.012; m.renderOrder = 1;
+  return m;
 }
 export function makeTree(seed, fruit = true) {
   const r = rand(seed), m = mats(), grp = new THREE.Group();
@@ -195,6 +291,8 @@ export function makeTree(seed, fruit = true) {
   }
   centers.forEach(([x, y, z, rad], i) => blobs.push(foliageBlob(x, y, z, rad, seed + i * 3.1)));
   const foliage = mesh(merge(blobs), fruit ? m.foliage.clone() : m.foliage); grp.add(foliage);
+  // thousands of little leaves on the outside of the canopy, so the edges look leafy instead of smooth
+  grp.add(aoBlob(1.9, 1.9, 0.5));
   const apples = [];
   if (fruit) {
     // Hang apples just outside the canopy, mostly on the lower half so they're easy to see
@@ -212,13 +310,13 @@ export function makeTree(seed, fruit = true) {
 function makeGrass(scene, avoid) {
   // tuft = 5 thin curved blades
   const blades = [], r = rand(31);
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const b = new THREE.PlaneGeometry(0.035, 0.2, 1, 2); b.translate(0, 0.1, 0);
     displace(b, (v) => { v.z += v.y * v.y * 1.4; v.x *= 1 - v.y * 3.6; });
     blades.push(at(b, (r() - 0.5) * 0.12, 0, (r() - 0.5) * 0.12, 0, r() * Math.PI * 2, (r() - 0.5) * 0.4, 0.7 + r() * 0.6));
   }
   const geo = merge(blades);
-  paint(geo, (x, y, z, c) => c.set(0x3d6a26).lerp(new THREE.Color(0x9cc25a), THREE.MathUtils.clamp(y / 0.22, 0, 1)));
+  paint(geo, (x, y, z, c) => c.set(0x5a9a34).lerp(new THREE.Color(0xb4e070), THREE.MathUtils.clamp(y / 0.22, 0, 1)));
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
   const wind = { value: 0 };
   mat.onBeforeCompile = (sh) => {
@@ -229,7 +327,7 @@ function makeGrass(scene, avoid) {
       float sway = sin(uTime * 1.6 + wp.x * 0.6 + wp.y * 0.4) * 0.06 + sin(uTime * 2.7 + wp.x) * 0.02;
       transformed.x += sway * position.y * 3.0; transformed.z += sway * position.y * 1.5;`);
   };
-  const N = 9500, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
+  const N = 5200, im = new THREE.InstancedMesh(geo, mat, N); im.receiveShadow = true;
   const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   let k = 0, tries = 0;
   while (k < N && tries < N * 6) {
@@ -403,6 +501,7 @@ function makeBakery() {
   // crates and barrels to the sides
   const b1 = makeBarrel(); b1.position.set(-3.2, 0, dz + 0.6); g.add(b1);
   const c1 = makeCrate(); c1.position.set(3.2, 0, dz + 0.55); c1.rotation.y = 0.2; g.add(c1);
+  g.add(aoBlob(4.4, 3.2, 0.5));
   return { group: g, chimneyTop: new THREE.Vector3(2.1, top + 2.3, -0.8) };
 }
 
@@ -437,6 +536,7 @@ function makeOven(kind) {
   displace(sack, (v) => { v.y = v.y < 0 ? v.y * 0.6 : v.y * 1.25; v.multiplyScalar(1 + fbm(v.x * 5, v.y * 5, v.z * 5) * 0.06); });
   g.add(mesh(at(sack, -1.55, 0.2, 0.7), new THREE.MeshStandardMaterial({ color: 0xe9dcc0, roughness: 1 })));
   g.userData = { fire, glow, smokeAt: new THREE.Vector3(0, 2.75, -0.3) };
+  g.add(aoBlob(1.8, 1.7, 0.5));
   return g;
 }
 const T2 = {};
@@ -472,6 +572,7 @@ function makeStall() {
   // baskets and crates for flavour
   const b = makeBasket(0.7); b.position.set(-1.9, 0, 0.3); g.add(b);
   const cr = makeCrate(); cr.position.set(1.95, 0, -0.1); cr.rotation.y = 0.15; g.add(cr);
+  g.add(aoBlob(2.0, 1.0, 0.35));
   return g;
 }
 
@@ -585,6 +686,7 @@ function makeJamKitchen() {
   const b = makeBarrel(); b.position.set(1.6, 0, -0.6); b.scale.setScalar(0.8); g.add(b);
   g.add(mesh(at(new THREE.PlaneGeometry(1.6, 0.5), 0, 2.15, 1.02), new THREE.MeshStandardMaterial({ map: signTex('Jam', '#7a2a2a'), roughness: 0.6 }), false));
   g.userData = { fire, smokeAt: new THREE.Vector3(0, 1.4, -0.2) };
+  g.add(aoBlob(2.0, 1.6, 0.5));
   return g;
 }
 function makeCart() {
@@ -707,12 +809,12 @@ export function buildWorld(scene) {
   const bunting = makeBunting(); bunting.position.set(0, 0, 12.2); scene.add(bunting);
   colliders.push({ x: -2.2, z: 12.2, r: 0.12, need: 'sign2' }, { x: 2.2, z: 12.2, r: 0.12, need: 'sign2' });
 
-  const farm = buildFarm(scene, colliders, { shingleRoof, signTex, makeOven, foliageBlob });
+  const farm = buildFarm(scene, colliders, { shingleRoof, signTex, makeOven, foliageBlob, aoBlob });
   for (const b of farm.bushes) trees.push(b);
   const wind = makeGrass(scene, (x, z) => {
     if (x > FIELD.x0 - 0.5 && x < FIELD.x0 + FIELD.nx + 0.5 && z > FIELD.z0 - 0.5 && z < FIELD.z0 + FIELD.nz + 0.5) return true;
     if (Math.hypot(x - 8, z - 11.4) < 3.6) return true;
-    if (Math.hypot((x - 20.4) / 2.9, (z - 8.6) / 2.1) < 1) return true; // pond
+    if (Math.hypot((x - 20.0) / 2.9, (z - 11.6) / 2.1) < 1) return true; // pond
     if (x < -20 && x > -30 && z > 1.8 && z < 10.6) return true; // strawberry beds
     for (const c of colliders) if (c.box) { const [a, b, cc, d] = c.box; if ((cc - a) * (d - b) > 15) continue; if (x > a - 0.2 && x < cc + 0.2 && z > b - 0.2 && z < d + 0.2) return true; }
     return false;

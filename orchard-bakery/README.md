@@ -10,11 +10,15 @@ The bakery keeps growing with no ceiling:
 
 - **Bigger farm.** Buy the East meadow (hens and a dairy barn with cows) and the West hill
   (a strawberry patch and bee hives). Each brings new produce and a new bake: custard tarts,
-  butter, strawberry tarts and jars of honey.
+  butter, strawberry tarts and jars of honey. Later a cheese room (east, from milk) and a cider
+  press (west, from apples) open, with their own table by the stall.
 - **Endless upgrades.** Once the first upgrades are done, green "↑" spots appear that level up
   again and again: faster ovens, better recipes (higher prices), more customers, faster growing,
-  bigger baskets and tray, and busier animals. Each level costs a little more than the last.
+  bigger baskets and tray, busier animals and bees, and quicker helpers. Each level costs a little more than the last.
 - **Bakery level.** Every sale, task and order earns stars. New land opens at higher levels.
+  While a build waits for a level, up to three other builds are still offered.
+- **Calm picking.** Trees, bushes and baskets only act when you stop beside them, so walking
+  past never grabs things you didn't want.
 - **Order wagon.** A wagon by the bakery asks for a mix of goods and pays well for the whole order.
 - **Tasks.** Three gentle goals at a time (sell 20 pies, collect 300 coins, upgrade 3 things…),
   each with a reward. Tap the clipboard or the ★ level to see them.

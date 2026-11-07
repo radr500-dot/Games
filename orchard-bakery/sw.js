@@ -1,6 +1,6 @@
 // Offline support: keep a copy of the app so it opens with no signal.
 // Only this game's old caches are cleared; other games and My Games share the same site storage.
-const CACHE = 'orchard-bakery-v5';
+const CACHE = 'orchard-bakery-v7';
 const FILES = [
   './', './index.html', './style.css', './app.js', './models.js', './world.js', './farm.js',
   './vendor/three.module.min.js', './vendor/BufferGeometryUtils.js', './vendor/RoomEnvironment.js',
